@@ -1,0 +1,9 @@
+build/
+webserv
+*.o
+*.d
+*.a
+*.swp
+.DS_Store
+.vscode/
+.idea/
