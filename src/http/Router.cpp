@@ -2,7 +2,6 @@
 #include "http/ResponseFactory.hpp"
 #include "session/SessionStore.hpp"
 
-namespace ws {
 
 Router::Router(const std::vector<ServerConfig>& configs, SessionStore& sessions)
 	: configs_(configs)
@@ -27,4 +26,3 @@ void Router::attachSessionCookie(const Request& /*req*/, Response& /*resp*/) {
 	// TODO Membro 3
 }
 
-}

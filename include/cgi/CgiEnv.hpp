@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-namespace ws {
 
 class CgiEnv {
 public:
@@ -33,6 +32,5 @@ private:
 	CgiEnv& operator=(const CgiEnv&);
 };
 
-}
 
 #endif

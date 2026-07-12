@@ -1,7 +1,6 @@
 #include "http/Request.hpp"
 #include "common/StringUtils.hpp"
 
-namespace ws {
 
 Request::Request()
 	: method_()
@@ -40,9 +39,8 @@ std::string Request::cookie(const std::string& /*name*/) const {
 
 bool Request::keepAlive() const {
 	std::string c = header("Connection");
-	if (str::iequals(c, "close")) return false;
-	if (version_ == "HTTP/1.0") return str::iequals(c, "keep-alive");
+	if (StringUtils::iequals(c, "close")) return false;
+	if (version_ == "HTTP/1.0") return StringUtils::iequals(c, "keep-alive");
 	return true;
 }
 
-}

@@ -3,7 +3,6 @@
 
 #include <string>
 
-namespace ws {
 
 class Logger {
 public:
@@ -23,11 +22,10 @@ private:
 	Level level_;
 };
 
-}
 
-#define LOG_DEBUG(msg) ::ws::Logger::instance().log(::ws::Logger::DEBUG, msg)
-#define LOG_INFO(msg)  ::ws::Logger::instance().log(::ws::Logger::INFO,  msg)
-#define LOG_WARN(msg)  ::ws::Logger::instance().log(::ws::Logger::WARN,  msg)
-#define LOG_ERROR(msg) ::ws::Logger::instance().log(::ws::Logger::ERROR, msg)
+#define LOG_DEBUG(msg) ::Logger::instance().log(::Logger::DEBUG, msg)
+#define LOG_INFO(msg)  ::Logger::instance().log(::Logger::INFO,  msg)
+#define LOG_WARN(msg)  ::Logger::instance().log(::Logger::WARN,  msg)
+#define LOG_ERROR(msg) ::Logger::instance().log(::Logger::ERROR, msg)
 
 #endif

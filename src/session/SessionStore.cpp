@@ -1,7 +1,6 @@
 #include "session/SessionStore.hpp"
 #include <ctime>
 
-namespace ws {
 
 SessionStore::SessionStore() : store_(), ttlSeconds_(3600) {}
 SessionStore::~SessionStore() {}
@@ -55,4 +54,3 @@ std::string SessionStore::generateId() {
 	return id;
 }
 
-}

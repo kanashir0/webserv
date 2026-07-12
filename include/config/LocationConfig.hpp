@@ -5,7 +5,6 @@
 #include <string>
 #include <map>
 
-namespace ws {
 
 struct LocationConfig {
 	std::string                        path;
@@ -21,6 +20,5 @@ struct LocationConfig {
 	LocationConfig();
 };
 
-}
 
 #endif

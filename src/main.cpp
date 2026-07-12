@@ -10,12 +10,12 @@ int main(int argc, char** argv) {
 	std::string confPath = (argc >= 2) ? argv[1] : "conf/default.conf";
 
 	try {
-		ws::ConfigParser parser;
-		std::vector<ws::ServerConfig> configs = parser.parseFile(confPath);
+		ConfigParser parser;
+		std::vector<ServerConfig> configs = parser.parseFile(confPath);
 
-		ws::SessionStore sessions;
-		ws::Router       router(configs, sessions);
-		ws::Server       server(configs, router);
+		SessionStore sessions;
+		Router       router(configs, sessions);
+		Server       server(configs, router);
 
 		LOG_INFO("webserv starting (skeleton, no real I/O yet)");
 		server.start();

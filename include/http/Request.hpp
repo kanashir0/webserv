@@ -4,7 +4,6 @@
 #include "common/Types.hpp"
 #include <string>
 
-namespace ws {
 
 class RequestParser;
 
@@ -38,6 +37,5 @@ private:
 	HeaderMap   headers_;
 };
 
-}
 
 #endif

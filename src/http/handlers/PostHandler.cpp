@@ -1,7 +1,6 @@
 #include "http/handlers/PostHandler.hpp"
 #include "http/ResponseFactory.hpp"
 
-namespace ws {
 
 PostHandler::PostHandler() {}
 PostHandler::~PostHandler() {}
@@ -25,4 +24,3 @@ Response PostHandler::handleCgi(const Request& /*req*/,
 	return ResponseFactory::makeError(501, srv);
 }
 
-}

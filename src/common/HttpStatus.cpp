@@ -1,6 +1,5 @@
 #include "common/HttpStatus.hpp"
 
-namespace ws {
 
 const char* statusReason(int code) {
 	switch (code) {
@@ -24,4 +23,3 @@ const char* statusReason(int code) {
 	}
 }
 
-}

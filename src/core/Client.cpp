@@ -4,7 +4,6 @@
 #include "session/SessionStore.hpp"
 #include <ctime>
 
-namespace ws {
 
 Client::Client(int fd,
                const std::vector<ServerConfig>& vhosts,
@@ -45,4 +44,3 @@ void Client::buildErrorResponse(int code) {
 	response_ = ResponseFactory::makeError(code, matchVirtualHost());
 }
 
-}

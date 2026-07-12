@@ -1,6 +1,5 @@
 #include "http/RequestParser.hpp"
 
-namespace ws {
 
 RequestParser::RequestParser()
 	: state_(METHOD)
@@ -44,4 +43,3 @@ RequestParser::FeedResult RequestParser::parseBodyByLength(std::size_t) { return
 RequestParser::FeedResult RequestParser::parseBodyChunked(std::size_t)  { return NEED_MORE; }
 void                      RequestParser::splitUri()         {}
 
-}

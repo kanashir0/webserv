@@ -1,7 +1,6 @@
 #include "common/Types.hpp"
 #include <cctype>
 
-namespace ws {
 
 bool CaseInsensitiveLess::operator()(const std::string& a, const std::string& b) const {
 	std::string::size_type i = 0;
@@ -14,4 +13,3 @@ bool CaseInsensitiveLess::operator()(const std::string& a, const std::string& b)
 	return a.size() < b.size();
 }
 
-}

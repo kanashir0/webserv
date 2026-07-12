@@ -11,7 +11,6 @@
 #include <ctime>
 #include <sys/types.h>
 
-namespace ws {
 
 class EventLoop;
 
@@ -59,6 +58,5 @@ private:
 	CgiHandler& operator=(const CgiHandler&);
 };
 
-}
 
 #endif

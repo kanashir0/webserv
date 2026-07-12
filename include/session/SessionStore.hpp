@@ -5,7 +5,6 @@
 #include <string>
 #include <map>
 
-namespace ws {
 
 class SessionStore {
 public:
@@ -30,6 +29,5 @@ private:
 	SessionStore& operator=(const SessionStore&);
 };
 
-}
 
 #endif

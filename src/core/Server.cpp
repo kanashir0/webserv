@@ -1,6 +1,5 @@
 #include "core/Server.hpp"
 
-namespace ws {
 
 ListeningSocket::ListeningSocket(const std::string& /*host*/,
                                  int /*port*/,
@@ -52,4 +51,3 @@ void Server::groupConfigsByEndpoint() {
 	// TODO Membro 1
 }
 
-}

@@ -4,7 +4,6 @@
 #include "core/IPollable.hpp"
 #include <vector>
 
-namespace ws {
 
 class EventLoop {
 public:
@@ -30,6 +29,5 @@ private:
 	EventLoop& operator=(const EventLoop&);
 };
 
-}
 
 #endif

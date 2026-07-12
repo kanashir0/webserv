@@ -11,7 +11,6 @@
 #include <vector>
 #include <ctime>
 
-namespace ws {
 
 class Router;
 class SessionStore;
@@ -68,6 +67,5 @@ private:
 	Client& operator=(const Client&);
 };
 
-}
 
 #endif

@@ -3,7 +3,6 @@
 
 #include "http/handlers/IMethodHandler.hpp"
 
-namespace ws {
 
 class DeleteHandler : public IMethodHandler {
 public:
@@ -15,6 +14,5 @@ public:
 	                const ServerConfig& srv);
 };
 
-}
 
 #endif

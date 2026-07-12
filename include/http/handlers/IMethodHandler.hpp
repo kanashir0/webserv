@@ -6,7 +6,6 @@
 #include "config/ServerConfig.hpp"
 #include "config/LocationConfig.hpp"
 
-namespace ws {
 
 class IMethodHandler {
 public:
@@ -17,6 +16,5 @@ public:
 	                        const ServerConfig& srv) = 0;
 };
 
-}
 
 #endif

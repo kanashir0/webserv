@@ -1,6 +1,5 @@
 #include "common/Socket.hpp"
 
-namespace ws {
 
 Socket::Socket() : fd_(-1) {}
 
@@ -23,4 +22,3 @@ int Socket::fd() const { return fd_.get(); }
 
 int Socket::release() { return fd_.release(); }
 
-}

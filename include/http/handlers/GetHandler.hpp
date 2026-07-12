@@ -3,7 +3,6 @@
 
 #include "http/handlers/IMethodHandler.hpp"
 
-namespace ws {
 
 class GetHandler : public IMethodHandler {
 public:
@@ -22,6 +21,5 @@ private:
 	                        const ServerConfig& srv);
 };
 
-}
 
 #endif

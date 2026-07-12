@@ -1,7 +1,6 @@
 #include "http/handlers/GetHandler.hpp"
 #include "http/ResponseFactory.hpp"
 
-namespace ws {
 
 GetHandler::GetHandler() {}
 GetHandler::~GetHandler() {}
@@ -24,4 +23,3 @@ Response GetHandler::serveDirectory(const std::string& /*fsPath*/,
 	return ResponseFactory::makeError(501, srv);
 }
 
-}

@@ -1,7 +1,6 @@
 #include "common/FileDescriptor.hpp"
 #include <unistd.h>
 
-namespace ws {
 
 FileDescriptor::FileDescriptor(int fd) : fd_(fd) {}
 
@@ -24,4 +23,3 @@ void FileDescriptor::reset(int fd) {
 
 bool FileDescriptor::valid() const { return fd_ >= 0; }
 
-}

@@ -1,6 +1,5 @@
 #include "config/LocationConfig.hpp"
 
-namespace ws {
 
 LocationConfig::LocationConfig()
 	: path()
@@ -14,4 +13,3 @@ LocationConfig::LocationConfig()
 	, cgi()
 {}
 
-}

@@ -5,16 +5,16 @@
 #include "config/ServerConfig.hpp"
 #include <string>
 
-namespace ws {
-namespace ResponseFactory {
+class ResponseFactory {
+public:
+	static Response makeError(int code, const ServerConfig& cfg);
+	static Response makeRedirect(const std::string& url, int code = 302);
+	static Response makeFile(const std::string& fsPath, const std::string& mime);
+	static Response makeAutoindex(const std::string& fsPath, const std::string& uriPath);
+	static Response makeFromCgi(const std::string& rawCgiOutput);
 
-Response makeError(int code, const ServerConfig& cfg);
-Response makeRedirect(const std::string& url, int code = 302);
-Response makeFile(const std::string& fsPath, const std::string& mime);
-Response makeAutoindex(const std::string& fsPath, const std::string& uriPath);
-Response makeFromCgi(const std::string& rawCgiOutput);
-
-}
-}
+private:
+	ResponseFactory();
+};
 
 #endif

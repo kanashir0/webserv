@@ -5,7 +5,6 @@
 #include <string>
 #include <cstddef>
 
-namespace ws {
 
 class RequestParser {
 public:
@@ -61,6 +60,5 @@ private:
 	RequestParser& operator=(const RequestParser&);
 };
 
-}
 
 #endif

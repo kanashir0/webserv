@@ -1,6 +1,5 @@
 #include "config/ServerConfig.hpp"
 
-namespace ws {
 
 ServerConfig::ServerConfig()
 	: host("0.0.0.0")
@@ -16,4 +15,3 @@ const LocationConfig* ServerConfig::findLocation(const std::string& /*uriPath*/)
 	return 0;
 }
 
-}

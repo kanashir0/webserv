@@ -8,7 +8,6 @@
 #include "session/SessionStore.hpp"
 #include <vector>
 
-namespace ws {
 
 class Router;
 
@@ -64,6 +63,5 @@ private:
 	Server& operator=(const Server&);
 };
 
-}
 
 #endif

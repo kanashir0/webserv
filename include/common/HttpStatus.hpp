@@ -3,7 +3,6 @@
 
 #include <string>
 
-namespace ws {
 
 enum HttpStatus {
 	HTTP_OK                    = 200,
@@ -26,6 +25,5 @@ enum HttpStatus {
 
 const char* statusReason(int code);
 
-}
 
 #endif

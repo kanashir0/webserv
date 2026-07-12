@@ -1,6 +1,5 @@
 #include "config/ConfigParser.hpp"
 
-namespace ws {
 
 ConfigParser::ParseError::ParseError(const std::string& msg, std::size_t line)
 	: std::runtime_error(msg), line_(line) {}
@@ -27,4 +26,3 @@ std::string               ConfigParser::nextToken()          { return std::strin
 void                      ConfigParser::expect(const std::string&) {}
 void                      ConfigParser::skipWhitespace()    {}
 
-}

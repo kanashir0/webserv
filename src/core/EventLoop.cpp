@@ -1,6 +1,5 @@
 #include "core/EventLoop.hpp"
 
-namespace ws {
 
 EventLoop::EventLoop() : pollables_(), running_(false) {}
 EventLoop::~EventLoop() {}
@@ -35,4 +34,3 @@ void EventLoop::reapClosed() {
 	// TODO Membro 1: remover pollables com wantsClose() == true e deletar
 }
 
-}

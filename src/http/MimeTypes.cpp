@@ -1,11 +1,8 @@
 #include "http/MimeTypes.hpp"
 #include "common/StringUtils.hpp"
 
-namespace ws {
-namespace mime {
-
-std::string fromExtension(const std::string& ext) {
-	std::string e = str::toLower(ext);
+std::string MimeTypes::fromExtension(const std::string& ext) {
+	std::string e = StringUtils::toLower(ext);
 	if (e == "html" || e == "htm") return "text/html";
 	if (e == "css")                return "text/css";
 	if (e == "js")                 return "application/javascript";
@@ -20,11 +17,8 @@ std::string fromExtension(const std::string& ext) {
 	return "application/octet-stream";
 }
 
-std::string fromPath(const std::string& path) {
+std::string MimeTypes::fromPath(const std::string& path) {
 	std::string::size_type dot = path.find_last_of('.');
 	if (dot == std::string::npos) return "application/octet-stream";
 	return fromExtension(path.substr(dot + 1));
-}
-
-}
 }

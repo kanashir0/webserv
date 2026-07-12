@@ -1,7 +1,6 @@
 #include "common/Logger.hpp"
 #include <iostream>
 
-namespace ws {
 
 Logger::Logger() : level_(INFO) {}
 Logger::~Logger() {}
@@ -26,4 +25,3 @@ void Logger::log(Level level, const std::string& msg) {
 	out << "[" << tag << "] " << msg << std::endl;
 }
 
-}

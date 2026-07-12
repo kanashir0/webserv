@@ -4,7 +4,6 @@
 #include "common/Types.hpp"
 #include <string>
 
-namespace ws {
 
 class Response {
 public:
@@ -32,6 +31,5 @@ private:
 	std::string body_;
 };
 
-}
 
 #endif

@@ -1,6 +1,5 @@
 #include "cgi/CgiEnv.hpp"
 
-namespace ws {
 
 CgiEnv::CgiEnv(const Request& req,
                const LocationConfig& loc,
@@ -32,4 +31,3 @@ char** CgiEnv::asEnvp() {
 
 const std::vector<std::string>& CgiEnv::asVector() const { return entries_; }
 
-}

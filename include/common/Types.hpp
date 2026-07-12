@@ -5,7 +5,6 @@
 #include <map>
 #include <vector>
 
-namespace ws {
 
 struct CaseInsensitiveLess {
 	bool operator()(const std::string& a, const std::string& b) const;
@@ -14,6 +13,5 @@ struct CaseInsensitiveLess {
 typedef std::map<std::string, std::string, CaseInsensitiveLess> HeaderMap;
 typedef std::vector<std::string>                                StringVec;
 
-}
 
 #endif

@@ -8,7 +8,6 @@
 #include <vector>
 #include <cstddef>
 
-namespace ws {
 
 struct ServerConfig {
 	std::string                  host;
@@ -23,6 +22,5 @@ struct ServerConfig {
 	const LocationConfig* findLocation(const std::string& uriPath) const;
 };
 
-}
 
 #endif

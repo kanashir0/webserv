@@ -3,13 +3,13 @@
 
 #include <string>
 
-namespace ws {
-namespace mime {
+class MimeTypes {
+public:
+	static std::string fromExtension(const std::string& ext);
+	static std::string fromPath(const std::string& path);
 
-std::string fromExtension(const std::string& ext);
-std::string fromPath(const std::string& path);
-
-}
-}
+private:
+	MimeTypes();
+};
 
 #endif

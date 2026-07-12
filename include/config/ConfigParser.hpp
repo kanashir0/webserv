@@ -6,7 +6,6 @@
 #include <vector>
 #include <stdexcept>
 
-namespace ws {
 
 class ConfigParser {
 public:
@@ -43,6 +42,5 @@ private:
 	ConfigParser& operator=(const ConfigParser&);
 };
 
-}
 
 #endif

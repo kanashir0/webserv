@@ -1,7 +1,6 @@
 #ifndef WEBSERV_CORE_IPOLLABLE_HPP
 #define WEBSERV_CORE_IPOLLABLE_HPP
 
-namespace ws {
 
 class IPollable {
 public:
@@ -17,6 +16,5 @@ public:
 	virtual bool wantsClose() const = 0;
 };
 
-}
 
 #endif

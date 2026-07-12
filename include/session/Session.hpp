@@ -5,7 +5,6 @@
 #include <map>
 #include <ctime>
 
-namespace ws {
 
 class Session {
 public:
@@ -30,6 +29,5 @@ private:
 	std::time_t                        expiresAt_;
 };
 
-}
 
 #endif

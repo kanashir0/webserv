@@ -1,6 +1,5 @@
 #include "session/Session.hpp"
 
-namespace ws {
 
 Session::Session() : id_(), data_(), expiresAt_(0) {}
 Session::Session(const std::string& id) : id_(id), data_(), expiresAt_(0) {}
@@ -34,4 +33,3 @@ bool Session::expired(std::time_t now) const {
 	return expiresAt_ != 0 && now >= expiresAt_;
 }
 
-}

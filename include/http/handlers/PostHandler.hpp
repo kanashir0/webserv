@@ -3,7 +3,6 @@
 
 #include "http/handlers/IMethodHandler.hpp"
 
-namespace ws {
 
 class PostHandler : public IMethodHandler {
 public:
@@ -24,6 +23,5 @@ private:
 	                   const std::string& interpreter);
 };
 
-}
 
 #endif

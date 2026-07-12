@@ -3,7 +3,6 @@
 #include <ctime>
 #include <signal.h>
 
-namespace ws {
 
 CgiHandler::CgiHandler(const Request& req,
                        const LocationConfig& loc,
@@ -50,4 +49,3 @@ void CgiHandler::kill() {
 	if (pid_ > 0) ::kill(pid_, SIGKILL);
 }
 
-}

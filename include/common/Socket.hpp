@@ -5,7 +5,6 @@
 #include <string>
 #include <netinet/in.h>
 
-namespace ws {
 
 class Socket {
 public:
@@ -26,6 +25,5 @@ private:
 	Socket& operator=(const Socket&);
 };
 
-}
 
 #endif

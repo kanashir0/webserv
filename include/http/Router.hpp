@@ -9,7 +9,6 @@
 #include "config/ServerConfig.hpp"
 #include <vector>
 
-namespace ws {
 
 class SessionStore;
 
@@ -35,6 +34,5 @@ private:
 	Router& operator=(const Router&);
 };
 
-}
 
 #endif

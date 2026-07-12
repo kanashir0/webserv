@@ -3,7 +3,6 @@
 #include "common/StringUtils.hpp"
 #include <sstream>
 
-namespace ws {
 
 Response::Response() : status_(200), headers_(), body_() {}
 Response::Response(int status) : status_(status), headers_(), body_() {}
@@ -17,12 +16,12 @@ void Response::setHeader(const std::string& key, const std::string& value) {
 
 void Response::setBody(const std::string& body) {
 	body_ = body;
-	headers_["Content-Length"] = str::toString(static_cast<long>(body_.size()));
+	headers_["Content-Length"] = StringUtils::toString(static_cast<long>(body_.size()));
 }
 
 void Response::appendBody(const std::string& chunk) {
 	body_ += chunk;
-	headers_["Content-Length"] = str::toString(static_cast<long>(body_.size()));
+	headers_["Content-Length"] = StringUtils::toString(static_cast<long>(body_.size()));
 }
 
 void Response::setCookie(const std::string& /*name*/,
@@ -46,4 +45,3 @@ std::string Response::toString() const {
 	return oss.str();
 }
 
-}

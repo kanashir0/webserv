@@ -1,7 +1,6 @@
 #ifndef WEBSERV_COMMON_FILE_DESCRIPTOR_HPP
 #define WEBSERV_COMMON_FILE_DESCRIPTOR_HPP
 
-namespace ws {
 
 class FileDescriptor {
 public:
@@ -20,6 +19,5 @@ private:
 	FileDescriptor& operator=(const FileDescriptor&);
 };
 
-}
 
 #endif
