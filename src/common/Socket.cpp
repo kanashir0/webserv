@@ -5,20 +5,63 @@ Socket::Socket() : fd_(-1) {}
 
 Socket::~Socket() {}
 
-void Socket::bindAndListen(const std::string& /*host*/, int /*port*/, int /*backlog*/) {
-	// TODO Membro 1: socket() + setsockopt SO_REUSEADDR + bind() + listen()
+void Socket::bindAndListen(const std::string& host, int port, int backlog) {
+	FileDescriptor(socket(AF_INET, SOCK_STREAM, 0));
+	if (fd() < 0) {
+		throw std::runtime_error("SOCKER FALHOU");
+	}
+
+	int opt = 1;
+	setsockopt(fd(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+	this->setNonBlocking(fd());
+
+	sockaddr_in addr;
+	std::memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	if (inet_pton(AF_INET, host.c_str(), &addr.sin_addr) != 1)
+		addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = htons(port);
+
+	socklen_t addrlen = sizeof(addr);
+	if (bind(fd(), (sockaddr *)&addr, addrlen) < 0) {
+		throw std::runtime_error("BIND FALHOU");
+	}
+
+	if (listen(fd(), backlog) < 0) {
+		throw std::runtime_error("LISTEN FALHOU");
+	}
+
+	fd_.reset(this->acceptConnection(addr));
 }
 
-int Socket::accept(struct sockaddr_in& /*outAddr*/) {
-	// TODO Membro 1
-	return -1;
+int Socket::acceptConnection(struct sockaddr_in& client) {
+	socklen_t clientlen = sizeof(client);
+
+	FileDescriptor(accept(fd(), (sockaddr*)&client, &clientlen));
+
+	if (fd() < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return -1;
+		throw std::runtime_error("ACCEPT FALHOU");
+	}
+
+	this->setNonBlocking(fd());
+
+	return fd();
 }
 
-void Socket::setNonBlocking(int /*fd*/) {
-	// TODO Membro 1: fcntl(fd, F_SETFL, O_NONBLOCK)
+void Socket::setNonBlocking(int server_fd) {
+	if (fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
+		throw std::runtime_error("FCNTL FALHOU");
+	}
 }
 
-int Socket::fd() const { return fd_.get(); }
+int Socket::fd() const {
+	return fd_.get();
+}
 
-int Socket::release() { return fd_.release(); }
+int Socket::release() {
+	return fd_.release();
+}
 
