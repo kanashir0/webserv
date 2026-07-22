@@ -1,8 +1,7 @@
 #include "core/Server.hpp"
 
-
-ListeningSocket::ListeningSocket(const std::string& /*host*/,
-                                 int /*port*/,
+ListeningSocket::ListeningSocket(const std::string& host,
+                                 int port,
                                  const std::vector<ServerConfig>& vhosts,
                                  Router& router,
                                  SessionStore& sessions,
@@ -12,13 +11,36 @@ ListeningSocket::ListeningSocket(const std::string& /*host*/,
 	, router_(router)
 	, sessions_(sessions)
 	, loop_(loop)
-{}
+{
+	socket_.bindAndListen(host, port);
+	socket_.setNonBlocking(fd());
+}
 
 ListeningSocket::~ListeningSocket() {}
 
 int   ListeningSocket::fd() const            { return socket_.fd(); }
 short ListeningSocket::interest() const      { return 0; }
-void  ListeningSocket::onReadable()          {}
+
+void  ListeningSocket::onReadable() {
+	while (true) {
+		int client_fd = socket_.acceptConnection();
+
+		if (client_fd < 0) {
+			if (errno == EAGAIN)
+				break;
+		}
+
+		Client* client = new Client(
+			client_fd,
+			vhosts_,
+			router_,
+			sessions_
+		);
+
+		loop_.add(client);
+	}
+}
+
 void  ListeningSocket::onWritable()          {}
 void  ListeningSocket::onHangup()            {}
 bool  ListeningSocket::wantsClose() const    { return false; }

@@ -19,7 +19,7 @@ public:
 	~Socket();
 
 	void bindAndListen(const std::string& host, int port, int backlog = 128);
-	int  acceptConnection(struct sockaddr_in& outAddr);
+	int  acceptConnection();
 	void setNonBlocking(int fd);
 
 	int  fd() const;

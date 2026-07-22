@@ -3,6 +3,7 @@
 
 #include "core/EventLoop.hpp"
 #include "core/IPollable.hpp"
+#include "core/Client.hpp"
 #include "common/Socket.hpp"
 #include "config/ServerConfig.hpp"
 #include "session/SessionStore.hpp"

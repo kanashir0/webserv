@@ -31,11 +31,10 @@ void Socket::bindAndListen(const std::string& host, int port, int backlog) {
 	if (listen(fd(), backlog) < 0) {
 		throw std::runtime_error("LISTEN FALHOU");
 	}
-
-	fd_.reset(this->acceptConnection(addr));
 }
 
-int Socket::acceptConnection(struct sockaddr_in& client) {
+int Socket::acceptConnection() {
+	sockaddr_in client;
 	socklen_t clientlen = sizeof(client);
 
 	FileDescriptor(accept(fd(), (sockaddr*)&client, &clientlen));
