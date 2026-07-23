@@ -29,34 +29,33 @@ void EventLoop::runOnce(int timeoutMs) {
 		fds.push_back(fd);
 	}
 
-	if (fds.empty())
-		return;
-
-	int return_poll = poll(&fds[0], fds.size(), timeoutMs);
+	pollfd* fdsData = fds.empty() ? NULL : &fds[0];
+	int return_poll = poll(fdsData, fds.size(), timeoutMs);
 	if (return_poll < 0) {
 		if (errno == EINTR)
 			return;
 		throw std::runtime_error(std::string("POLL FAILED: ") + std::strerror(errno));
 	}
 
-	for (int i = 0; fds.size(); i++) {
+	for (std::size_t i = 0; i < fds.size(); i++) {
 		IPollable* p = pollables_[i];
 		short revents = fds[i].revents;
 
 		if (revents & (POLLHUP | POLLERR))
 			p->onHangup();
-		else if (revents & POLLIN)
+		if (revents & POLLIN)
 			p->onReadable();
-		else if (revents & POLLOUT)
+		if (revents & POLLOUT)
 			p->onWritable();
 	}
+
+	reapClosed();
 }
 
 void EventLoop::run() {
 	running_ = true;
 	while (running_) {
 		runOnce(1000);
-		reapClosed();
 	}
 }
 
@@ -79,4 +78,3 @@ void EventLoop::reapClosed() {
 			it++;
 	}
 }
-
