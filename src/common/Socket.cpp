@@ -6,10 +6,11 @@ Socket::Socket() : fd_(-1) {}
 Socket::~Socket() {}
 
 void Socket::bindAndListen(const std::string& host, int port, int backlog) {
-	FileDescriptor(socket(AF_INET, SOCK_STREAM, 0));
-	if (fd() < 0) {
+	int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (socket_fd < 0) {
 		throw std::runtime_error("SOCKER FALHOU");
 	}
+	fd_.reset(socket_fd);
 
 	int opt = 1;
 	setsockopt(fd(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
@@ -37,17 +38,17 @@ int Socket::acceptConnection() {
 	sockaddr_in client;
 	socklen_t clientlen = sizeof(client);
 
-	FileDescriptor(accept(fd(), (sockaddr*)&client, &clientlen));
-
-	if (fd() < 0) {
+	int client_fd = accept(fd(), (sockaddr*)&client, &clientlen);
+	if (client_fd < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return -1;
 		throw std::runtime_error("ACCEPT FALHOU");
 	}
 
-	this->setNonBlocking(fd());
+	FileDescriptor accepted_fd(client_fd);
+	this->setNonBlocking(accepted_fd.get());
 
-	return fd();
+	return accepted_fd.release();
 }
 
 void Socket::setNonBlocking(int server_fd) {
