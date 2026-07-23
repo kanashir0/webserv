@@ -28,6 +28,7 @@ public:
 private:
 	int         status_;
 	HeaderMap   headers_;
+	StringVec   cookies_;
 	std::string body_;
 };
 
