@@ -1,9 +1,16 @@
 #ifndef WEBSERV_COMMON_SOCKET_HPP
-#define WEBSERV_COMMON_SOCKET_HPP
+# define WEBSERV_COMMON_SOCKET_HPP
 
 #include "common/FileDescriptor.hpp"
+#include <iostream>
 #include <string>
+#include <fstream>
+#include <cstring>
+#include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <cerrno>
 
 
 class Socket {
@@ -12,7 +19,7 @@ public:
 	~Socket();
 
 	void bindAndListen(const std::string& host, int port, int backlog = 128);
-	int  accept(struct sockaddr_in& outAddr);
+	int  acceptConnection();
 	void setNonBlocking(int fd);
 
 	int  fd() const;

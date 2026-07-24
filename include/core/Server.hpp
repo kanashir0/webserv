@@ -3,6 +3,7 @@
 
 #include "core/EventLoop.hpp"
 #include "core/IPollable.hpp"
+#include "core/Client.hpp"
 #include "common/Socket.hpp"
 #include "config/ServerConfig.hpp"
 #include "session/SessionStore.hpp"
@@ -28,8 +29,15 @@ public:
 	void  onHangup();
 	bool  wantsClose() const;
 
+	void        addServer(ServerConfig& config);
+
+	std::string getHost();
+	int         getPort();
+
 private:
 	Socket                           socket_;
+	std::string                      host_;
+	int                              port_;
 	std::vector<ServerConfig>        vhosts_;
 	Router&                          router_;
 	SessionStore&                    sessions_;
@@ -56,8 +64,6 @@ private:
 	std::vector<ListeningSocket*> listeners_;
 	SessionStore                  sessions_;
 	Router&                       router_;
-
-	void groupConfigsByEndpoint();
 
 	Server(const Server&);
 	Server& operator=(const Server&);

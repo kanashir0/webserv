@@ -18,8 +18,10 @@ int main(int argc, char** argv) {
 		Server       server(configs, router);
 
 		LOG_INFO("webserv starting (skeleton, no real I/O yet)");
+		// std::vector<ServerConfig> configue;
+		// configue.push_back(ServerConfig());
+		// Server       servidor(configue, router);
 		server.start();
-		server.loop().run();
 	} catch (const std::exception& e) {
 		std::cerr << "fatal: " << e.what() << std::endl;
 		return 1;

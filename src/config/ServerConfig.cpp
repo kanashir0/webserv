@@ -3,7 +3,7 @@
 
 ServerConfig::ServerConfig()
 	: host("0.0.0.0")
-	, port(80)
+	, port(8080)
 	, serverNames()
 	, clientMaxBodySize(1 * 1024 * 1024)
 	, errorPages()
