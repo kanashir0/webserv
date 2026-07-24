@@ -6,7 +6,7 @@
 
 
 Client::Client(int fd,
-               const std::vector<ServerConfig>& vhosts,
+               std::vector<ServerConfig>& vhosts,
                Router& router,
                SessionStore& sessions)
 	: fd_(fd)
@@ -27,7 +27,27 @@ Client::~Client() {}
 
 int   Client::fd() const         { return fd_.get(); }
 short Client::interest() const   { return 0; }
-void  Client::onReadable()       { lastActivity_ = std::time(0); }
+
+void  Client::onReadable()       {
+	char buffer[4096];
+
+	ssize_t ret = recv(fd_.get(), buffer, sizeof(buffer), 0);
+
+	// Caso não tenha log, juntar os retornos 0 e -1
+	if (ret == 0) {
+		wantsClose_ = true;
+		return;
+	}
+
+	if (ret < 0) {
+		wantsClose_ = true;
+		return;
+	}
+
+
+	lastActivity_ = std::time(0);
+}
+
 void  Client::onWritable()       { lastActivity_ = std::time(0); }
 void  Client::onHangup()         { wantsClose_ = true; }
 bool  Client::wantsClose() const { return wantsClose_; }
@@ -36,11 +56,20 @@ Client::State Client::state() const          { return state_; }
 std::time_t   Client::lastActivity() const   { return lastActivity_; }
 
 const ServerConfig& Client::matchVirtualHost() const {
-	// TODO Membro 1: usar Host header + porta para escolher vhost
+	std::string host = request_.header("Host");
+
+	for (size_t i = 0; i < vhosts_.size(); i++) {
+		StringVec serverName = vhosts_[i].getServerNames();
+		for (size_t j = 0; j < serverName.size(); j++) {
+			if (host == serverName[j])
+				return vhosts_[i];
+		}
+	}
 	return vhosts_.front();
 }
 
 void Client::buildErrorResponse(int code) {
 	response_ = ResponseFactory::makeError(code, matchVirtualHost());
 }
+
 

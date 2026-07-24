@@ -9,7 +9,6 @@
 #include "session/SessionStore.hpp"
 #include <vector>
 
-
 class Router;
 
 class ListeningSocket : public IPollable {

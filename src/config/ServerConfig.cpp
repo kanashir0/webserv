@@ -15,3 +15,7 @@ const LocationConfig* ServerConfig::findLocation(const std::string& /*uriPath*/)
 	return 0;
 }
 
+StringVec ServerConfig::getServerNames() {
+	return serverNames;
+}
+

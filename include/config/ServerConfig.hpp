@@ -20,6 +20,8 @@ struct ServerConfig {
 	ServerConfig();
 
 	const LocationConfig* findLocation(const std::string& uriPath) const;
+
+	StringVec getServerNames();
 };
 
 
