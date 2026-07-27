@@ -7,6 +7,7 @@
 #include "http/Request.hpp"
 #include "http/RequestParser.hpp"
 #include "http/Response.hpp"
+#include <sys/socket.h>
 #include <string>
 #include <vector>
 #include <ctime>
@@ -26,7 +27,7 @@ public:
 	};
 
 	Client(int fd,
-	       const std::vector<ServerConfig>& vhosts,
+	       std::vector<ServerConfig>& vhosts,
 	       Router& router,
 	       SessionStore& sessions);
 	~Client();
@@ -56,7 +57,7 @@ private:
 	std::time_t lastActivity_;
 	bool        wantsClose_;
 
-	const std::vector<ServerConfig>& vhosts_;
+	std::vector<ServerConfig>&       vhosts_;
 	Router&                          router_;
 	SessionStore&                    sessions_;
 

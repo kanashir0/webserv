@@ -2,8 +2,13 @@
 #define WEBSERV_CORE_EVENT_LOOP_HPP
 
 #include "core/IPollable.hpp"
+#include "common/Logger.hpp"
+#include <iostream>
+#include <cstring>
+#include <poll.h>
+#include <cerrno>
 #include <vector>
-
+#include <sstream>
 
 class EventLoop {
 public:
