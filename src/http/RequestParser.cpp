@@ -7,6 +7,8 @@
 // Teto de bytes acumulados antes do body (URI 8K + headers 8K).
 static const std::size_t kMaxPreBodyBytes = 16384;
 static const std::size_t kMaxUriLength    = 8192;
+static const std::size_t kMaxHeaderBytes  = 8192; // cumulativo
+static const std::size_t kMaxHeaderCount  = 100;
 
 // tchar (RFC 7230 3.2.6)
 static bool isToken(const std::string& s) {
@@ -158,7 +160,83 @@ RequestParser::FeedResult RequestParser::parseRequestLine() {
 	state_ = HEADER;
 	return NEED_MORE; // progresso sinalizado pela mudança de state_
 }
-RequestParser::FeedResult RequestParser::parseHeaders()     { return NEED_MORE; }
+RequestParser::FeedResult RequestParser::parseHeaders() {
+	for (;;) {
+		std::string::size_type eol = buf_.find("\r\n");
+		if (eol == std::string::npos) return NEED_MORE;
+
+		if (eol == 0) { // linha vazia: acabaram os headers
+			buf_.erase(0, 2);
+			break;
+		}
+
+		const std::string line = buf_.substr(0, eol);
+		buf_.erase(0, eol + 2);
+
+		bytesRead_ += eol + 2;
+		if (bytesRead_ > kMaxHeaderBytes
+		 || building_.headers_.size() >= kMaxHeaderCount) {
+			state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+			return BAD_REQUEST;
+		}
+
+		// obs-fold (RFC 7230 3.2.4) é deprecado: rejeitamos
+		std::string::size_type colon = line.find(':');
+		const std::string      name  = (colon == std::string::npos)
+		                             ? std::string() : line.substr(0, colon);
+		// isToken cobre nome vazio, SP antes do ':' e obs-fold
+		if (colon == std::string::npos || !isToken(name)
+		 || (StringUtils::iequals(name, "Content-Length")
+		  && building_.hasHeader(name))) { // CL duplicado: request smuggling
+			state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+			return BAD_REQUEST;
+		}
+
+		building_.headers_[name] = StringUtils::trim(line.substr(colon + 1));
+	}
+
+	if (building_.version_ == "HTTP/1.1" && !building_.hasHeader("Host")) {
+		state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+		return BAD_REQUEST;
+	}
+
+	const bool hasCL = building_.hasHeader("Content-Length");
+	const bool hasTE = building_.hasHeader("Transfer-Encoding");
+
+	if (hasCL && hasTE) { // ambíguo: request smuggling
+		state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+		return BAD_REQUEST;
+	}
+
+	if (hasTE) {
+		if (!StringUtils::iequals(building_.header("Transfer-Encoding"), "chunked")) {
+			state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+			return BAD_REQUEST;
+		}
+		chunked_ = true;
+		state_   = BODY_CHUNKED;
+		return NEED_MORE;
+	}
+
+	if (hasCL) {
+		bool ok = false;
+		long v  = StringUtils::toLong(building_.header("Content-Length"), ok);
+		if (!ok || v < 0) {
+			state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+			return BAD_REQUEST;
+		}
+		contentLength_ = static_cast<std::size_t>(v);
+		state_ = (contentLength_ == 0) ? DONE : BODY_LENGTH;
+		return NEED_MORE;
+	}
+
+	if (building_.method_ == "POST") { // sem como saber onde o body termina
+		state_ = ERROR; errorStatus_ = HTTP_LENGTH_REQUIRED;
+		return BAD_REQUEST;
+	}
+	state_ = DONE;
+	return NEED_MORE;
+}
 RequestParser::FeedResult RequestParser::parseBodyByLength(std::size_t) { return NEED_MORE; }
 RequestParser::FeedResult RequestParser::parseBodyChunked(std::size_t)  { return NEED_MORE; }
 
