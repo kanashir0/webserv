@@ -22,7 +22,7 @@ static bool isToken(const std::string& s) {
 static bool hasCtl(const std::string& s) {
 	for (std::string::size_type i = 0; i < s.size(); ++i) {
 		unsigned char c = static_cast<unsigned char>(s[i]);
-		if (c < 0x21 || c == 0x7F) return true;
+		if (std::iscntrl(c) || c == ' ') return true;
 	}
 	return false;
 }
