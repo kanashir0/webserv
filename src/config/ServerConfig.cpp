@@ -9,6 +9,10 @@ ServerConfig::ServerConfig()
 	, locations()
 {}
 
+StringVec ServerConfig::getServerNames() {
+	return serverNames;
+}
+
 const LocationConfig* ServerConfig::findLocation(const std::string& uriPath) const {
 	const LocationConfig* bestMatch = 0;
 
