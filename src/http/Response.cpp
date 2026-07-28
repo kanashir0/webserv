@@ -3,25 +3,23 @@
 #include "common/StringUtils.hpp"
 #include <sstream>
 
-namespace {
-	std::string sanitizeHeaderValue(const std::string& value) {
-		std::string sanitized;
-		sanitized.reserve(value.size());
-		for (std::string::size_type i = 0; i < value.size(); ++i) {
-			char c = value[i];
-			if (c == '\r' || c == '\n' || c == ':') {
-				if (sanitized.empty() || sanitized[sanitized.size() - 1] != ' ') {
-					sanitized += ' ';
-				}
-			} else {
-				sanitized += c;
+static std::string sanitizeHeaderValue(const std::string& value) {
+	std::string sanitized;
+	sanitized.reserve(value.size());
+	for (std::string::size_type i = 0; i < value.size(); ++i) {
+		char c = value[i];
+		if (c == '\r' || c == '\n' || c == ':') {
+			if (sanitized.empty() || sanitized[sanitized.size() - 1] != ' ') {
+				sanitized += ' ';
 			}
+		} else {
+			sanitized += c;
 		}
-		while (!sanitized.empty() && sanitized[sanitized.size() - 1] == ' ') {
-			sanitized.erase(sanitized.size() - 1);
-		}
-		return sanitized;
 	}
+	while (!sanitized.empty() && sanitized[sanitized.size() - 1] == ' ') {
+		sanitized.erase(sanitized.size() - 1);
+	}
+	return sanitized;
 }
 
 Response::Response() : status_(200), headers_(), cookies_(), body_() {}
