@@ -10,6 +10,8 @@
 #include <vector>
 #include <sstream>
 
+class ListeningSockets;
+
 class EventLoop {
 public:
 	EventLoop();
@@ -26,6 +28,7 @@ public:
 
 private:
 	std::vector<IPollable*> pollables_;
+	std::vector<ListeningSockets*> listeners_;
 	bool                    running_;
 
 	void reapClosed();

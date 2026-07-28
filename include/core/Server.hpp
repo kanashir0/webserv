@@ -29,6 +29,7 @@ public:
 	bool  wantsClose() const;
 
 	void        addServer(ServerConfig& config);
+	void        checkTimeout(time_t now, time_t timeout);
 
 	std::string getHost();
 	int         getPort();

@@ -101,6 +101,11 @@ void Server::stop() { loop_.stop(); }
 EventLoop&    Server::loop()     { return loop_; }
 SessionStore& Server::sessions() { return sessions_; }
 
+void        ListeningSocket::checkTimeout(time_t now, time_t timeout) {
+	(void)now;
+	(void)timeout;
+}
+
 void        ListeningSocket::addServer(ServerConfig& config) {
 	vhosts_.push_back(config);
 }

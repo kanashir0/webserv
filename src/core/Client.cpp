@@ -72,4 +72,12 @@ void Client::buildErrorResponse(int code) {
 	response_ = ResponseFactory::makeError(code, matchVirtualHost());
 }
 
+void Client::checkTimeout(std::time_t now, std::time_t timeout) {
+	if (now - lastActivity_ <= timeout)
+		return;
+
+	buildErrorResponse(408);
+	state_ = WRITING_RESPONSE;
+}
+
 

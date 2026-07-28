@@ -39,6 +39,12 @@ void EventLoop::runOnce(int timeoutMs) {
 		throw std::runtime_error(std::string("POLL FAILED: ") + std::strerror(errno));
 	}
 
+	time_t now = std::time(NULL);
+	for (std::vector<IPollable*>::iterator it = pollables_.begin();
+		 it != pollables_.end(); it++) {
+		(*it)->checkTimeout(now, timeoutMs);
+	}
+
 	for (int i = 0; fds.size(); i++) {
 		IPollable* p = pollables_[i];
 		short revents = fds[i].revents;

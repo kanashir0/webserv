@@ -44,6 +44,8 @@ public:
 	State state() const;
 	std::time_t lastActivity() const;
 
+	void checkTimeout(std::time_t now, std::time_t timeout);
+
 private:
 	FileDescriptor fd_;
 	State          state_;
