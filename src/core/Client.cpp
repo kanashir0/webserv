@@ -18,6 +18,7 @@ Client::Client(int fd,
 	, outOffset_(0)
 	, lastActivity_(std::time(0))
 	, wantsClose_(false)
+	, responseSerialized_(false)
 	, vhosts_(vhosts)
 	, router_(router)
 	, sessions_(sessions)
@@ -48,7 +49,39 @@ void  Client::onReadable()       {
 	lastActivity_ = std::time(0);
 }
 
-void  Client::onWritable()       { lastActivity_ = std::time(0); }
+void  Client::onWritable()       {
+	lastActivity_ = std::time(0);
+
+	if (!responseSerialized_) {
+		outBuffer_ = response_.toString();
+		outOffset_ = 0;
+		responseSerialized_ = true;
+	}
+
+	size_t remaining = outBuffer_.size() - outOffset_;
+
+	ssize_t bytes_sent = send(fd_.get(), outBuffer_.c_str(), remaining, WRITING_RESPONSE); //verificar flag mais tarde
+
+	if (bytes_sent < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return;
+		wantsClose_ = true;
+		state_ = DONE;
+		return;
+	}
+
+	outOffset_ +=  bytes_sent;
+
+	if (outOffset_ < outBuffer_.size())
+		return;
+
+	// Se for adaptar o KeepAlive (condição)
+
+	responseSerialized_ = false;
+	wantsClose_ = true;
+	state_ = DONE;
+}
+
 void  Client::onHangup()         { wantsClose_ = true; }
 bool  Client::wantsClose() const { return wantsClose_; }
 

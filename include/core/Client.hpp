@@ -58,6 +58,7 @@ private:
 	size_t      outOffset_;
 	std::time_t lastActivity_;
 	bool        wantsClose_;
+	bool        responseSerialized_;
 
 	std::vector<ServerConfig>&       vhosts_;
 	Router&                          router_;
