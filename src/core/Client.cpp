@@ -26,27 +26,49 @@ Client::Client(int fd,
 
 Client::~Client() {}
 
-int   Client::fd() const         { return fd_.get(); }
-short Client::interest() const   { return 0; }
+int   Client::fd() const         { 
+	return fd_.get(); 
+}
+
+short Client::interest() const   { 
+	switch (state_) {
+		case READING_HEADERS:
+		case READING_BODY:
+			return POLLIN;
+		
+		case WRITING_RESPONSE:
+			return POLLOUT;
+
+		default:
+			return 0;
+	}
+}
 
 void  Client::onReadable()       {
+	lastActivity_ = std::time(0);
+	
 	char buffer[4096];
 
 	ssize_t ret = recv(fd_.get(), buffer, sizeof(buffer), 0);
 
-	// Caso não tenha log, juntar os retornos 0 e -1
 	if (ret == 0) {
 		wantsClose_ = true;
+		state_ = DONE;
 		return;
 	}
-
-	if (ret < 0) {
-		wantsClose_ = true;
+	if (ret < 0)
 		return;
+
+	RequestParser::FeedResult result = parser_.feed(buffer, ret, matchVirtualHost().clientMaxBodySize);
+
+	if (result == RequestParser::FeedResult::NEED_MORE)
+		return;
+	if (result == RequestParser::FeedResult::COMPLETE)
+		state_ = ROUTING;
+	if (result == RequestParser::FeedResult::BAD_REQUEST) {
+		buildErrorResponse(parser_.errorStatus());
+		state_ = WRITING_RESPONSE;	
 	}
-
-
-	lastActivity_ = std::time(0);
 }
 
 void  Client::onWritable()       {

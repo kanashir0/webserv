@@ -7,6 +7,7 @@
 #include "http/Request.hpp"
 #include "http/RequestParser.hpp"
 #include "http/Response.hpp"
+#include <poll.h>
 #include <sys/socket.h>
 #include <string>
 #include <vector>
