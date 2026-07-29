@@ -7,3 +7,5 @@ webserv
 .DS_Store
 .vscode/
 .idea/
+docs/internal.md
+docs/checklist.md
