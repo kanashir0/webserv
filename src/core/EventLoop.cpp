@@ -63,6 +63,9 @@ void EventLoop::run() {
 	while (running_) {
 		runOnce(1000);
 		reapClosed();
+
+		if (g_shutdown)
+			stop();
 	}
 }
 
