@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 #include <ctime>
-
+#include <cerrno>
 
 class Router;
 class SessionStore;
@@ -20,11 +20,11 @@ class SessionStore;
 class Client : public IPollable {
 public:
 	enum State {
+		DONE,
 		READING_HEADERS,
 		READING_BODY,
 		ROUTING,
-		WRITING_RESPONSE,
-		DONE
+		WRITING_RESPONSE
 	};
 
 	Client(int fd,
@@ -60,6 +60,7 @@ private:
 	std::time_t lastActivity_;
 	bool        wantsClose_;
 	bool        responseSerialized_;
+	bool		closeAfterWrite_;
 
 	std::vector<ServerConfig>&       vhosts_;
 	Router&                          router_;

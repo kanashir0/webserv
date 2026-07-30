@@ -20,11 +20,12 @@ ListeningSocket::ListeningSocket(const std::string& host,
 
 ListeningSocket::~ListeningSocket() {}
 
-int   ListeningSocket::fd() const            { return socket_.fd(); }
+int   ListeningSocket::fd() const            {
+	return socket_.fd();
+}
+
 short ListeningSocket::interest() const      {
 	return POLLIN;
-	// return 0;
-
 }
 
 void  ListeningSocket::onReadable() {
@@ -49,7 +50,10 @@ void  ListeningSocket::onReadable() {
 
 void  ListeningSocket::onWritable()          {}
 void  ListeningSocket::onHangup()            {}
-bool  ListeningSocket::wantsClose() const    { return false; }
+
+bool  ListeningSocket::wantsClose() const    {
+	return false;
+}
 
 Server::Server(const std::vector<ServerConfig>& configs, Router& router)
 	: configs_(configs)
@@ -96,10 +100,17 @@ void Server::start() {
 	loop_.run();
 }
 
-void Server::stop() { loop_.stop(); }
+void Server::stop() {
+	loop_.stop();
+}
 
-EventLoop&    Server::loop()     { return loop_; }
-SessionStore& Server::sessions() { return sessions_; }
+EventLoop&    Server::loop()     {
+	return loop_;
+}
+
+SessionStore& Server::sessions() {
+	return sessions_;
+}
 
 void        ListeningSocket::checkTimeout(time_t now, time_t timeout) {
 	(void)now;

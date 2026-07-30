@@ -5,8 +5,18 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <signal.h>
+
+volatile sig_atomic_t g_shutdown;
+
+void signalHandler(int) {
+	g_shutdown = 1;
+}
 
 int main(int argc, char** argv) {
+	std::signal(SIGINT, signalHandler);
+	std::signal(SIGTERM, signalHandler);
+
 	std::string confPath = (argc >= 2) ? argv[1] : "conf/default.conf";
 
 	try {

@@ -4,7 +4,6 @@
 #include "session/SessionStore.hpp"
 #include <ctime>
 
-
 Client::Client(int fd,
                std::vector<ServerConfig>& vhosts,
                Router& router,
@@ -19,6 +18,7 @@ Client::Client(int fd,
 	, lastActivity_(std::time(0))
 	, wantsClose_(false)
 	, responseSerialized_(false)
+	, closeAfterWrite_(false)
 	, vhosts_(vhosts)
 	, router_(router)
 	, sessions_(sessions)
@@ -26,27 +26,27 @@ Client::Client(int fd,
 
 Client::~Client() {}
 
-int   Client::fd() const         { 
-	return fd_.get(); 
+int   Client::fd() const         {
+	return fd_.get();
 }
 
-short Client::interest() const   { 
+short Client::interest() const   {
 	switch (state_) {
 		case READING_HEADERS:
 		case READING_BODY:
 			return POLLIN;
-		
+
 		case WRITING_RESPONSE:
 			return POLLOUT;
 
 		default:
-			return 0;
+			return DONE;
 	}
 }
 
 void  Client::onReadable()       {
 	lastActivity_ = std::time(0);
-	
+
 	char buffer[4096];
 
 	ssize_t ret = recv(fd_.get(), buffer, sizeof(buffer), 0);
@@ -61,13 +61,13 @@ void  Client::onReadable()       {
 
 	RequestParser::FeedResult result = parser_.feed(buffer, ret, matchVirtualHost().clientMaxBodySize);
 
-	if (result == RequestParser::FeedResult::NEED_MORE)
+	if (result == RequestParser::NEED_MORE)
 		return;
-	if (result == RequestParser::FeedResult::COMPLETE)
+	if (result == RequestParser::COMPLETE)
 		state_ = ROUTING;
-	if (result == RequestParser::FeedResult::BAD_REQUEST) {
+	if (result == RequestParser::BAD_REQUEST) {
 		buildErrorResponse(parser_.errorStatus());
-		state_ = WRITING_RESPONSE;	
+		state_ = WRITING_RESPONSE;
 	}
 }
 
@@ -82,7 +82,7 @@ void  Client::onWritable()       {
 
 	size_t remaining = outBuffer_.size() - outOffset_;
 
-	ssize_t bytes_sent = send(fd_.get(), outBuffer_.c_str(), remaining, WRITING_RESPONSE); //verificar flag mais tarde
+	ssize_t bytes_sent = send(fd_.get(), outBuffer_.c_str() + outOffset_, remaining, 0);
 
 	if (bytes_sent < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -97,11 +97,22 @@ void  Client::onWritable()       {
 	if (outOffset_ < outBuffer_.size())
 		return;
 
-	// Se for adaptar o KeepAlive (condição)
+	if (closeAfterWrite_) {
+		wantsClose_ = true;
+		state_ = DONE;
+		return;
+	}
 
+	if (request_.keepAlive()) {
+		parser_.reset();
+		outBuffer_.clear();
+		outOffset_ = 0;
+		state_ = READING_HEADERS;
+	} else {
+		wantsClose_ = true;
+		state_ = DONE;
+	}
 	responseSerialized_ = false;
-	wantsClose_ = true;
-	state_ = DONE;
 }
 
 void  Client::onHangup()         { wantsClose_ = true; }
@@ -132,6 +143,7 @@ void Client::checkTimeout(std::time_t now, std::time_t timeout) {
 		return;
 
 	buildErrorResponse(408);
+	closeAfterWrite_ = true;
 	state_ = WRITING_RESPONSE;
 }
 
