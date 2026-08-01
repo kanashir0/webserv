@@ -4,6 +4,7 @@
 #include "common/Types.hpp"
 #include <string>
 #include <map>
+#include <cstddef>
 
 
 struct LocationConfig {
@@ -16,6 +17,7 @@ struct LocationConfig {
 	int                                redirectCode;
 	std::string                        uploadStore;
 	std::map<std::string, std::string> cgi;
+	std::size_t                        clientMaxBodySize; // 0 = herda do server
 
 	LocationConfig();
 };

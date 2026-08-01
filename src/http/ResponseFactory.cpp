@@ -274,7 +274,59 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 	return r;
 }
 
-Response ResponseFactory::makeFromCgi(const std::string& /*rawCgiOutput*/) {
-	// TODO Membro 3
-	return Response(200);
+// RFC 3875 §6: saida CGI = headers, linha em branco, body. O terminador pode
+// ser \r\n\r\n ou \n\n dependendo do script; aceitamos os dois.
+Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
+	std::string::size_type headerEnd = rawCgiOutput.find("\r\n\r\n");
+	std::string::size_type bodyStart;
+	std::string            lineSep;
+	if (headerEnd != std::string::npos) {
+		bodyStart = headerEnd + 4;
+		lineSep   = "\r\n";
+	} else {
+		headerEnd = rawCgiOutput.find("\n\n");
+		if (headerEnd == std::string::npos) {
+			LOG_ERROR("makeFromCgi: saida CGI sem separador de headers");
+			return Response(HTTP_BAD_GATEWAY);
+		}
+		bodyStart = headerEnd + 2;
+		lineSep   = "\n";
+	}
+
+	Response resp(HTTP_OK);
+	std::string            headerBlock = rawCgiOutput.substr(0, headerEnd);
+	std::string::size_type lineStart   = 0;
+	while (lineStart < headerBlock.size()) {
+		std::string::size_type lineEnd = headerBlock.find(lineSep, lineStart);
+		std::string line = (lineEnd == std::string::npos)
+			? headerBlock.substr(lineStart)
+			: headerBlock.substr(lineStart, lineEnd - lineStart);
+		lineStart = (lineEnd == std::string::npos)
+			? headerBlock.size()
+			: lineEnd + lineSep.size();
+
+		std::string::size_type colon = line.find(':');
+		if (colon == std::string::npos || colon == 0) {
+			LOG_WARN("makeFromCgi: header CGI malformado: \"" + line + "\"");
+			return Response(HTTP_BAD_GATEWAY);
+		}
+		std::string name  = StringUtils::trim(line.substr(0, colon));
+		std::string value = StringUtils::trim(line.substr(colon + 1));
+
+		if (StringUtils::iequals(name, "Status")) {
+			// Formato: "404 Not Found" ou apenas "404".
+			bool ok = false;
+			long code = StringUtils::toLong(value.substr(0, value.find(' ')), ok);
+			if (!ok || code < 100 || code > 599) {
+				LOG_WARN("makeFromCgi: Status CGI invalido: \"" + value + "\"");
+				return Response(HTTP_BAD_GATEWAY);
+			}
+			resp.setStatus(static_cast<int>(code));
+		} else {
+			resp.setHeader(name, value);
+		}
+	}
+
+	resp.setBody(rawCgiOutput.substr(bodyStart));
+	return resp;
 }

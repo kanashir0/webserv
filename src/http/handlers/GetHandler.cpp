@@ -47,8 +47,9 @@ Response GetHandler::serveDirectory(const std::string& fsPath,
                                     const std::string& uriPath,
                                     const LocationConfig& loc,
                                     const ServerConfig& srv) {
-	if (!loc.index.empty()) {
-		std::string indexPath = PathResolver::joinPath(fsPath, loc.index);
+	const std::string& index = !loc.index.empty() ? loc.index : srv.index;
+	if (!index.empty()) {
+		std::string indexPath = PathResolver::joinPath(fsPath, index);
 		struct stat info;
 		if (stat(indexPath.c_str(), &info) == 0 && S_ISREG(info.st_mode)) {
 			return serveFile(indexPath, srv);

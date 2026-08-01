@@ -1,7 +1,9 @@
 #include "core/EventLoop.hpp"
 
-EventLoop::EventLoop() : pollables_(), running_(false) {}
+EventLoop::EventLoop() : pollables_(), tickHandler_(0), running_(false) {}
 EventLoop::~EventLoop() {}
+
+void EventLoop::setTickHandler(ITickable* handler) { tickHandler_ = handler; }
 
 void EventLoop::add(IPollable* pollable) {
 	if (pollable) pollables_.push_back(pollable);
@@ -63,6 +65,9 @@ void EventLoop::run() {
 	while (running_) {
 		runOnce(1000);
 		reapClosed();
+
+		if (tickHandler_)
+			tickHandler_->onTick();
 
 		if (g_shutdown)
 			stop();

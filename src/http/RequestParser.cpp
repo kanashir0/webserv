@@ -237,8 +237,86 @@ RequestParser::FeedResult RequestParser::parseHeaders() {
 	state_ = DONE;
 	return NEED_MORE;
 }
-RequestParser::FeedResult RequestParser::parseBodyByLength(std::size_t) { return NEED_MORE; }
-RequestParser::FeedResult RequestParser::parseBodyChunked(std::size_t)  { return NEED_MORE; }
+RequestParser::FeedResult RequestParser::parseBodyByLength(std::size_t maxBody) {
+	if (maxBody != 0 && contentLength_ > maxBody) {
+		state_ = ERROR; errorStatus_ = HTTP_PAYLOAD_TOO_LARGE;
+		return BODY_TOO_LARGE;
+	}
+	if (buf_.size() < contentLength_) return NEED_MORE;
+
+	building_.body_ = buf_.substr(0, contentLength_);
+	buf_.erase(0, contentLength_);
+	state_ = DONE;
+	return NEED_MORE; // progresso sinalizado pela mudança de state_
+}
+
+// chunk-size em hex (RFC 7230 4.1); teto de 8 dígitos evita overflow
+static bool parseChunkSize(const std::string& s, unsigned long& out) {
+	if (s.empty() || s.size() > 8) return false;
+	out = 0;
+	for (std::string::size_type i = 0; i < s.size(); ++i) {
+		char c = s[i];
+		int  v;
+		if (c >= '0' && c <= '9')      v = c - '0';
+		else if (c >= 'a' && c <= 'f') v = c - 'a' + 10;
+		else if (c >= 'A' && c <= 'F') v = c - 'A' + 10;
+		else return false;
+		out = out * 16 + static_cast<unsigned long>(v);
+	}
+	return true;
+}
+
+RequestParser::FeedResult RequestParser::parseBodyChunked(std::size_t maxBody) {
+	for (;;) {
+		std::string::size_type eol = buf_.find("\r\n");
+		if (eol == std::string::npos) return NEED_MORE;
+
+		std::string sizeLine = buf_.substr(0, eol);
+		std::string::size_type semi = sizeLine.find(';'); // chunk extensions: ignoradas
+		if (semi != std::string::npos) sizeLine = sizeLine.substr(0, semi);
+
+		unsigned long size = 0;
+		if (!parseChunkSize(StringUtils::trim(sizeLine), size)) {
+			state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+			return BAD_REQUEST;
+		}
+
+		if (size == 0) { // ultimo chunk: trailers opcionais + linha vazia
+			std::string::size_type p = eol + 2;
+			for (;;) {
+				std::string::size_type lineEnd = buf_.find("\r\n", p);
+				if (lineEnd == std::string::npos) {
+					if (buf_.size() - p > kMaxHeaderBytes) {
+						state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+						return BAD_REQUEST;
+					}
+					return NEED_MORE;
+				}
+				if (lineEnd == p) { // linha vazia: fim dos trailers
+					buf_.erase(0, lineEnd + 2);
+					state_ = DONE;
+					return NEED_MORE;
+				}
+				p = lineEnd + 2; // trailer ignorado
+			}
+		}
+
+		if (maxBody != 0 && building_.body_.size() + size > maxBody) {
+			state_ = ERROR; errorStatus_ = HTTP_PAYLOAD_TOO_LARGE;
+			return BODY_TOO_LARGE;
+		}
+
+		// só consome quando size-line + dados + CRLF estiverem completos
+		std::string::size_type dataStart = eol + 2;
+		if (buf_.size() < dataStart + size + 2) return NEED_MORE;
+		if (buf_.compare(dataStart + size, 2, "\r\n") != 0) {
+			state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
+			return BAD_REQUEST;
+		}
+		building_.body_.append(buf_, dataStart, size);
+		buf_.erase(0, dataStart + size + 2);
+	}
+}
 
 void RequestParser::splitUri() {
 	std::string::size_type q = building_.uri_.find('?');

@@ -2,11 +2,12 @@
 #define WEBSERV_SESSION_SESSION_STORE_HPP
 
 #include "session/Session.hpp"
+#include "core/ITickable.hpp"
 #include <string>
 #include <map>
 
 
-class SessionStore {
+class SessionStore : public ITickable {
 public:
 	SessionStore();
 	~SessionStore();
@@ -15,6 +16,7 @@ public:
 	Session* find(const std::string& id);
 	void     drop(const std::string& id);
 	void     gc();
+	void     onTick();
 
 	void setTtlSeconds(int ttl);
 	int  ttlSeconds() const;

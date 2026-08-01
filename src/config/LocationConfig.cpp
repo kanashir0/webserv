@@ -11,5 +11,6 @@ LocationConfig::LocationConfig()
 	, redirectCode(302)
 	, uploadStore()
 	, cgi()
+	, clientMaxBodySize(0)
 {}
 

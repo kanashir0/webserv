@@ -2,6 +2,7 @@
 #define WEBSERV_CORE_EVENT_LOOP_HPP
 
 #include "core/IPollable.hpp"
+#include "core/ITickable.hpp"
 #include "common/Logger.hpp"
 #include <iostream>
 #include <cstring>
@@ -23,6 +24,8 @@ public:
 	void add(IPollable* pollable);
 	void remove(IPollable* pollable);
 
+	void setTickHandler(ITickable* handler);
+
 	void runOnce(int timeoutMs);
 	void run();
 	void stop();
@@ -32,6 +35,7 @@ public:
 private:
 	std::vector<IPollable*> pollables_;
 	std::vector<ListeningSockets*> listeners_;
+	ITickable*              tickHandler_;
 	bool                    running_;
 
 	void reapClosed();

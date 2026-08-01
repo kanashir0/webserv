@@ -1,5 +1,6 @@
 #include "cgi/CgiHandler.hpp"
 #include "core/EventLoop.hpp"
+#include "http/ResponseFactory.hpp"
 #include <ctime>
 #include <signal.h>
 
@@ -32,7 +33,7 @@ void CgiHandler::start(EventLoop& /*loop*/) {
 }
 
 bool     CgiHandler::finished() const  { return done_; }
-Response CgiHandler::takeResponse()    { return Response(200); }
+Response CgiHandler::takeResponse()    { return ResponseFactory::makeFromCgi(output_); }
 
 int   CgiHandler::fd() const          { return stdoutPipe_.get(); }
 short CgiHandler::interest() const    { return 0; }

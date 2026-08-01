@@ -70,9 +70,9 @@ void  Client::onReadable()       {
 		request_ = parser_.take();
 		response_ = router_.route(request_, matchVirtualHost());
 		state_ = WRITING_RESPONSE;
-	}
-	if (result == RequestParser::BAD_REQUEST) {
+	} else { // BAD_REQUEST, URI_TOO_LONG, BODY_TOO_LARGE, VERSION_UNSUPPORTED
 		buildErrorResponse(parser_.errorStatus());
+		closeAfterWrite_ = true; // parser em estado de erro: sem keep-alive
 		state_ = WRITING_RESPONSE;
 	}
 }
