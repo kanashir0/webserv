@@ -36,6 +36,9 @@ short Client::interest() const   {
 		case READING_BODY:
 			return POLLIN;
 
+		case ROUTING:
+			return 0;
+
 		case WRITING_RESPONSE:
 			return POLLOUT;
 
@@ -63,8 +66,11 @@ void  Client::onReadable()       {
 
 	if (result == RequestParser::NEED_MORE)
 		return;
-	if (result == RequestParser::COMPLETE)
-		state_ = ROUTING;
+	if (result == RequestParser::COMPLETE) {
+		request_ = parser_.take();
+		response_ = router_.route(request_, matchVirtualHost());
+		state_ = WRITING_RESPONSE;
+	}
 	if (result == RequestParser::BAD_REQUEST) {
 		buildErrorResponse(parser_.errorStatus());
 		state_ = WRITING_RESPONSE;
