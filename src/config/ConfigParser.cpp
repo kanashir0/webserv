@@ -1,7 +1,12 @@
 #include "config/ConfigParser.hpp"
 #include <fstream>
 #include <sstream>
+#include <cctype>
 #include <sys/stat.h>
+
+namespace {
+	bool isSymbol(char c) { return c == '{' || c == '}' || c == ';'; }
+}
 
 
 ConfigParser::ParseError::ParseError(const std::string& msg, std::size_t line)
@@ -37,10 +42,53 @@ std::vector<ServerConfig> ConfigParser::parseString(const std::string& source) {
 	return doParse();
 }
 
+void ConfigParser::skipWhitespace() {
+	while (pos_ < source_.size()) {
+		char c = source_[pos_];
+		if (c == '\n') {
+			++line_;
+			++pos_;
+		} else if (std::isspace(static_cast<unsigned char>(c))) {
+			++pos_;
+		} else if (c == '#') {
+			while (pos_ < source_.size() && source_[pos_] != '\n')
+				++pos_;
+		} else {
+			break;
+		}
+	}
+}
+
+// String vazia significa EOF — nenhum token válido é vazio.
+std::string ConfigParser::nextToken() {
+	skipWhitespace();
+	if (pos_ >= source_.size())
+		return std::string();
+
+	char c = source_[pos_];
+	if (isSymbol(c)) {
+		++pos_;
+		return std::string(1, c);
+	}
+
+	std::size_t start = pos_;
+	while (pos_ < source_.size()) {
+		c = source_[pos_];
+		if (isSymbol(c) || c == '#' || std::isspace(static_cast<unsigned char>(c)))
+			break;
+		++pos_;
+	}
+	return source_.substr(start, pos_ - start);
+}
+
+void ConfigParser::expect(const std::string& token) {
+	std::string got = nextToken();
+	if (got != token)
+		throw ParseError("expected '" + token + "' but got '" +
+		                 (got.empty() ? std::string("<EOF>") : got) + "'", line_);
+}
+
 std::vector<ServerConfig> ConfigParser::doParse() { return std::vector<ServerConfig>(); }
 ServerConfig              ConfigParser::parseServerBlock()   { return ServerConfig(); }
 LocationConfig            ConfigParser::parseLocationBlock() { return LocationConfig(); }
-std::string               ConfigParser::nextToken()          { return std::string(); }
-void                      ConfigParser::expect(const std::string&) {}
-void                      ConfigParser::skipWhitespace()    {}
 
