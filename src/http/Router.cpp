@@ -20,9 +20,8 @@ static std::string allowHeaderFor(const LocationConfig& loc) {
 	return allow;
 }
 
-Router::Router(const std::vector<ServerConfig>& configs, SessionStore& sessions)
-	: configs_(configs)
-	, sessions_(sessions)
+Router::Router(SessionStore& sessions)
+	: sessions_(sessions)
 	, getH_()
 	, postH_()
 	, deleteH_()

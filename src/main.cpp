@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
 		std::vector<ServerConfig> configs = parser.parseFile(confPath);
 
 		SessionStore sessions;
-		Router       router(configs, sessions);
+		Router       router(sessions);
 		Server       server(configs, router);
 
 		LOG_INFO("webserv starting (skeleton, no real I/O yet)");

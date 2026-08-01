@@ -60,11 +60,6 @@ void Response::setBody(const std::string& body) {
 	headers_["Content-Length"] = StringUtils::toString(static_cast<long>(body_.size()));
 }
 
-void Response::appendBody(const std::string& chunk) {
-	body_ += chunk;
-	headers_["Content-Length"] = StringUtils::toString(static_cast<long>(body_.size()));
-}
-
 void Response::setCookie(const std::string& name,
                          const std::string& value,
                          const std::string& options) {
