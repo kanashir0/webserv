@@ -34,7 +34,9 @@ private:
 	std::vector<ServerConfig> doParse();
 	ServerConfig              parseServerBlock();
 	LocationConfig            parseLocationBlock();
+	void                      skipLocationBlock();
 	std::string               nextToken();
+	StringVec                 readDirectiveArgs(const std::string& directive);
 	void                      expect(const std::string& token);
 	void                      skipWhitespace();
 

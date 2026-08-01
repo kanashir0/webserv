@@ -14,6 +14,7 @@ struct ServerConfig {
 	int                          port;
 	StringVec                    serverNames;
 	std::string                  root;
+	std::string                  index;
 	std::size_t                  clientMaxBodySize;
 	std::map<int, std::string>   errorPages;
 	std::vector<LocationConfig>  locations;

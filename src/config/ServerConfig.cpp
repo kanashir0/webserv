@@ -4,11 +4,16 @@ ServerConfig::ServerConfig()
 	: host("0.0.0.0")
 	, port(8080)
 	, serverNames()
-	, root()
+	, root("./www")
+	, index("index.html")
 	, clientMaxBodySize(1 * 1024 * 1024)
 	, errorPages()
 	, locations()
 {}
+
+StringVec ServerConfig::getServerNames() {
+	return serverNames;
+}
 
 const LocationConfig* ServerConfig::findLocation(const std::string& uriPath) const {
 	const LocationConfig* bestMatch = 0;
@@ -24,8 +29,4 @@ const LocationConfig* ServerConfig::findLocation(const std::string& uriPath) con
 		}
 	}
 	return bestMatch;
-}
-
-StringVec ServerConfig::getServerNames() {
-	return serverNames;
 }

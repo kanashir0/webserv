@@ -45,7 +45,7 @@ void EventLoop::runOnce(int timeoutMs) {
 		(*it)->checkTimeout(now, timeoutMs);
 	}
 
-	for (int i = 0; fds.size(); i++) {
+	for (std::size_t i = 0; i < fds.size(); i++) {
 		IPollable* p = pollables_[i];
 		short revents = fds[i].revents;
 
