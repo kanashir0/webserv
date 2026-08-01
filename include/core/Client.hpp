@@ -7,11 +7,12 @@
 #include "http/Request.hpp"
 #include "http/RequestParser.hpp"
 #include "http/Response.hpp"
+#include <poll.h>
 #include <sys/socket.h>
 #include <string>
 #include <vector>
 #include <ctime>
-
+#include <cerrno>
 
 class Router;
 class SessionStore;
@@ -19,11 +20,11 @@ class SessionStore;
 class Client : public IPollable {
 public:
 	enum State {
+		DONE,
 		READING_HEADERS,
 		READING_BODY,
 		ROUTING,
-		WRITING_RESPONSE,
-		DONE
+		WRITING_RESPONSE
 	};
 
 	Client(int fd,
@@ -44,6 +45,8 @@ public:
 	State state() const;
 	std::time_t lastActivity() const;
 
+	void checkTimeout(std::time_t now, std::time_t timeout);
+
 private:
 	FileDescriptor fd_;
 	State          state_;
@@ -56,6 +59,8 @@ private:
 	size_t      outOffset_;
 	std::time_t lastActivity_;
 	bool        wantsClose_;
+	bool        responseSerialized_;
+	bool		closeAfterWrite_;
 
 	std::vector<ServerConfig>&       vhosts_;
 	Router&                          router_;

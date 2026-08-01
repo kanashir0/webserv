@@ -30,3 +30,7 @@ const LocationConfig* ServerConfig::findLocation(const std::string& uriPath) con
 	}
 	return bestMatch;
 }
+
+StringVec ServerConfig::getServerNames() {
+	return serverNames;
+}
