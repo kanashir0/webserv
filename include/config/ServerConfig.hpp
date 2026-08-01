@@ -13,6 +13,7 @@ struct ServerConfig {
 	std::string                  host;
 	int                          port;
 	StringVec                    serverNames;
+	std::string                  root;  // root do bloco server; LocationConfig::root sobrescreve
 	std::size_t                  clientMaxBodySize;
 	std::map<int, std::string>   errorPages;
 	std::vector<LocationConfig>  locations;

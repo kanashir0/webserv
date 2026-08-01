@@ -1,25 +1,40 @@
 #include "http/Response.hpp"
 #include "common/HttpStatus.hpp"
+#include "common/Logger.hpp"
 #include "common/StringUtils.hpp"
 #include <sstream>
 
+// RFC 7230 3.2.6: field-name = token = 1*tchar
+static bool isValidHeaderKey(const std::string& key) {
+	static const std::string separators = "()<>@,;:\\\"/[]?={}";
+	if (key.empty()) {
+		return false;
+	}
+	for (std::string::size_type i = 0; i < key.size(); ++i) {
+		unsigned char c = static_cast<unsigned char>(key[i]);
+		if (c <= 32 || c >= 127 ||
+		    separators.find(static_cast<char>(c)) != std::string::npos) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Neutraliza header injection: todo control char (CR, LF, NUL...) vira um unico
+// espaco. ':' e preservado -- e legal em field-value e necessario para
+// Location/Date.
 static std::string sanitizeHeaderValue(const std::string& value) {
 	std::string sanitized;
 	sanitized.reserve(value.size());
 	for (std::string::size_type i = 0; i < value.size(); ++i) {
-		char c = value[i];
-		if (c == '\r' || c == '\n' || c == ':') {
-			if (sanitized.empty() || sanitized[sanitized.size() - 1] != ' ') {
-				sanitized += ' ';
-			}
-		} else {
-			sanitized += c;
+		unsigned char c = static_cast<unsigned char>(value[i]);
+		if (c >= 32 && c != 127) {
+			sanitized += static_cast<char>(c);
+		} else if (!sanitized.empty() && sanitized[sanitized.size() - 1] != ' ') {
+			sanitized += ' ';
 		}
 	}
-	while (!sanitized.empty() && sanitized[sanitized.size() - 1] == ' ') {
-		sanitized.erase(sanitized.size() - 1);
-	}
-	return sanitized;
+	return StringUtils::trim(sanitized);
 }
 
 Response::Response() : status_(200), headers_(), cookies_(), body_() {}
@@ -29,8 +44,21 @@ Response::~Response() {}
 void Response::setStatus(int code) { status_ = code; }
 
 void Response::setHeader(const std::string& key, const std::string& value) {
-	std::string sanitized = sanitizeHeaderValue(value);
-	headers_[key] = sanitized;
+	if (!isValidHeaderKey(key)) {
+		LOG_WARN("Response::setHeader: nome de header invalido, descartado: \"" + key + "\"");
+		return;
+	}
+	// Content-Length e derivado do body: setBody()/appendBody() sao a unica fonte.
+	if (StringUtils::iequals(key, "Content-Length")) {
+		LOG_WARN("Response::setHeader: Content-Length e gerido por setBody(), descartado");
+		return;
+	}
+	// Set-Cookie e o unico header repetivel: no HeaderMap o segundo apagaria o primeiro.
+	if (StringUtils::iequals(key, "Set-Cookie")) {
+		cookies_.push_back(sanitizeHeaderValue(value));
+		return;
+	}
+	headers_[key] = sanitizeHeaderValue(value);
 }
 
 void Response::setBody(const std::string& body) {
