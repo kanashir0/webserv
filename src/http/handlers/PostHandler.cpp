@@ -10,8 +10,6 @@
 #include <unistd.h>
 
 
-// Dispatch por extensao, como a config "cgi .py /usr/bin/python3" pede.
-// Checa o path decodificado: "/s%2Epy" tambem e CGI.
 static bool findCgiInterpreter(const std::string& decodedPath,
                                const LocationConfig& loc,
                                std::string& interpreter) {
@@ -30,8 +28,6 @@ static std::string basenameOf(const std::string& s) {
 	return cut == std::string::npos ? s : s.substr(cut + 1);
 }
 
-// Nome final vive dentro de upload_store, sempre: basename mata "/", "\\" e
-// qualquer prefixo de diretorio; sobras perigosas viram nome gerado.
 static std::string sanitizeFilename(const std::string& rawName) {
 	std::string name = basenameOf(rawName);
 	if (name.empty() || name == "." || name == "..") {
@@ -53,7 +49,6 @@ static std::string generatedName() {
 	       "-" + StringUtils::toString(static_cast<long>(counter));
 }
 
-// POST direto no proprio location (/upload ou /upload/) nao nomeia arquivo.
 static std::string filenameFromUri(const std::string& decodedPath, const std::string& locPath) {
 	if (decodedPath.empty() || decodedPath[decodedPath.size() - 1] == '/') {
 		return std::string();
@@ -72,7 +67,6 @@ static bool isMultipart(const std::string& contentType) {
 	return StringUtils::startsWith(StringUtils::toLower(contentType), "multipart/form-data");
 }
 
-// boundary e case-sensitive: localiza a chave em minusculo mas extrai do original.
 static bool extractBoundary(const std::string& contentType, std::string& boundary) {
 	std::string::size_type pos = StringUtils::toLower(contentType).find("boundary=");
 	if (pos == std::string::npos) {
@@ -91,8 +85,6 @@ static bool extractBoundary(const std::string& contentType, std::string& boundar
 	return !value.empty();
 }
 
-// Extrai a primeira parte do multipart (o que o subject exige de upload):
-// --boundary CRLF headers CRLF CRLF conteudo CRLF --boundary[--]
 static bool firstMultipartPart(const std::string& body, const std::string& boundary,
                                std::string& filename, std::string& content) {
 	const std::string      delimiter = "--" + boundary;
@@ -102,7 +94,7 @@ static bool firstMultipartPart(const std::string& body, const std::string& bound
 	}
 	std::string::size_type afterDelim = start + delimiter.size();
 	if (body.compare(afterDelim, 2, "--") == 0) {
-		return false;  // fechamento imediato: multipart sem partes
+		return false;
 	}
 	if (body.compare(afterDelim, 2, "\r\n") != 0) {
 		return false;
@@ -124,7 +116,7 @@ static bool firstMultipartPart(const std::string& body, const std::string& bound
 	std::string::size_type contentStart = headerEnd + 4;
 	std::string::size_type contentEnd   = body.find("\r\n" + delimiter, contentStart);
 	if (contentEnd == std::string::npos) {
-		return false;  // parte sem delimitador de fechamento
+		return false;
 	}
 	content = body.substr(contentStart, contentEnd - contentStart);
 	return true;
@@ -159,8 +151,6 @@ Response PostHandler::handle(const Request& req,
 	return handleUpload(req, loc, srv);
 }
 
-// Nota: body acima de clientMaxBodySize ja foi rejeitado com 413 pelo parser;
-// aqui o body chega pronto e dentro do limite.
 Response PostHandler::handleUpload(const Request& req,
                                    const LocationConfig& loc,
                                    const ServerConfig& srv) {

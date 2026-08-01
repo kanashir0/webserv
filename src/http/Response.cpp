@@ -4,7 +4,6 @@
 #include "common/StringUtils.hpp"
 #include <sstream>
 
-// RFC 7230 3.2.6: field-name = token = 1*tchar
 static bool isValidHeaderKey(const std::string& key) {
 	static const std::string separators = "()<>@,;:\\\"/[]?={}";
 	if (key.empty()) {
@@ -20,9 +19,6 @@ static bool isValidHeaderKey(const std::string& key) {
 	return true;
 }
 
-// Neutraliza header injection: todo control char (CR, LF, NUL...) vira um unico
-// espaco. ':' e preservado -- e legal em field-value e necessario para
-// Location/Date.
 static std::string sanitizeHeaderValue(const std::string& value) {
 	std::string sanitized;
 	sanitized.reserve(value.size());
@@ -48,12 +44,10 @@ void Response::setHeader(const std::string& key, const std::string& value) {
 		LOG_WARN("Response::setHeader: nome de header invalido, descartado: \"" + key + "\"");
 		return;
 	}
-	// Content-Length e derivado do body: setBody()/appendBody() sao a unica fonte.
 	if (StringUtils::iequals(key, "Content-Length")) {
 		LOG_WARN("Response::setHeader: Content-Length e gerido por setBody(), descartado");
 		return;
 	}
-	// Set-Cookie e o unico header repetivel: no HeaderMap o segundo apagaria o primeiro.
 	if (StringUtils::iequals(key, "Set-Cookie")) {
 		cookies_.push_back(sanitizeHeaderValue(value));
 		return;

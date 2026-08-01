@@ -10,9 +10,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-// Classifica e le em uma passada: HTTP_OK preenche outContent; 404 inexistente,
-// 403 nao regular ou sem leitura, 500 caminho vazio ou falha de I/O. A decisao
-// sai de stat()/access() antes de abrir: o subject proibe inspecionar errno.
 static int readRegularFile(const std::string& path, std::string& outContent) {
 	if (path.empty()) {
 		return HTTP_INTERNAL_SERVER_ERROR;
@@ -37,9 +34,6 @@ static int readRegularFile(const std::string& path, std::string& outContent) {
 	return HTTP_OK;
 }
 
-// Heranca de root do nginx: o location de prefixo mais longo que DECLARE root,
-// caindo para o root do bloco server. findLocation() pararia no primeiro match
-// e ignoraria o root do ancestral.
 static const std::string* findRootForUri(const std::string& uriPath, const ServerConfig& cfg) {
 	const std::string*     bestRoot   = 0;
 	std::string::size_type bestLength = 0;
@@ -65,19 +59,15 @@ static const std::string* findRootForUri(const std::string& uriPath, const Serve
 static bool loadConfiguredErrorPage(int code, const ServerConfig& cfg, std::string& outBody) {
 	std::map<int, std::string>::const_iterator it = cfg.errorPages.find(code);
 	if (it == cfg.errorPages.end() || it->second.empty()) {
-		return false;  // sem config: fallback silencioso, sem log
+		return false;
 	}
 	const std::string& pageUri = it->second;
 
-	// Arquivo de 0 bytes conta como falha: um body vazio desligaria a pagina de
-	// erro sem nenhum sinal.
 	const std::string* root = findRootForUri(pageUri, cfg);
 	if (root != 0 && readRegularFile(PathResolver::joinPath(*root, pageUri), outBody) == HTTP_OK &&
 	    !outBody.empty()) {
 		return true;
 	}
-	// Ultimo recurso: valor configurado como caminho de filesystem, para
-	// suportar "error_page 500 ./www/errors/500.html".
 	if (readRegularFile(pageUri, outBody) == HTTP_OK && !outBody.empty()) {
 		return true;
 	}
@@ -119,8 +109,6 @@ static bool isSupportedRedirectCode(int code) {
 	return code == HTTP_MOVED_PERMANENTLY || code == HTTP_FOUND;
 }
 
-// Unica fabrica sem ServerConfig: seu erro e de config, nao de I/O, e o default
-// 302 exige que o codigo seja o ultimo parametro. Cai na pagina embutida.
 Response ResponseFactory::makeRedirect(const std::string& url, int code) {
 	if (!isSupportedRedirectCode(code)) {
 		LOG_ERROR("makeRedirect: codigo de redirecionamento nao suportado: " +
@@ -158,8 +146,6 @@ Response ResponseFactory::makeFile(const std::string& fsPath,
 	return r;
 }
 
-// Nomes de arquivo podem conter '<', '>' e aspas: sem escapar, uma entrada como
-// <script> viraria XSS refletido no proprio listing.
 static std::string escapeHtml(const std::string& text) {
 	std::string escaped;
 	escaped.reserve(text.size());

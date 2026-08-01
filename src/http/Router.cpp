@@ -6,7 +6,6 @@
 #include "session/SessionStore.hpp"
 
 
-// RFC 7231 6.5.5: 405 deve listar os metodos permitidos no header Allow.
 static std::string allowHeaderFor(const LocationConfig& loc) {
 	if (loc.methods.empty()) {
 		return "GET, POST, DELETE";
@@ -32,8 +31,6 @@ Router::Router(const std::vector<ServerConfig>& configs, SessionStore& sessions)
 Router::~Router() {}
 
 Response Router::route(const Request& req, const ServerConfig& vhost) {
-	// Contrato com o M1: route() nunca deixa excecao escapar -- o Client nao tem
-	// como se recuperar no meio do loop de eventos. Erro interno vira 500.
 	try {
 		const LocationConfig* loc = vhost.findLocation(req.path());
 		if (loc == 0) {
@@ -56,8 +53,6 @@ Response Router::route(const Request& req, const ServerConfig& vhost) {
 		if (req.method() == "DELETE") {
 			return deleteH_.handle(req, *loc, vhost);
 		}
-		// Metodo valido na whitelist mas sem handler (PUT, HEAD...): 405 com os
-		// metodos que o servidor de fato implementa.
 		Response r = ResponseFactory::makeError(HTTP_METHOD_NOT_ALLOWED, vhost);
 		r.setHeader("Allow", "GET, POST, DELETE");
 		return r;
@@ -69,9 +64,6 @@ Response Router::route(const Request& req, const ServerConfig& vhost) {
 	return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, vhost);
 }
 
-// Whitelist do location. Lista vazia libera tudo (como o nginx, que so restringe
-// quando limit_except e declarado) -- e tambem o que mantem o servidor testavel
-// enquanto o ConfigParser nao preenche methods.
 bool Router::methodAllowed(const std::string& method, const LocationConfig& loc) const {
 	if (loc.methods.empty()) {
 		return true;

@@ -5,10 +5,6 @@
 #include "config/ServerConfig.hpp"
 #include <string>
 
-// Toda fabrica devolve uma Response pronta e nunca lanca excecao. A que pode
-// falhar por I/O recebe o ServerConfig e ja converte a falha em makeError(),
-// preservando as error_pages do vhost; o chamador que precisar ramificar
-// consulta status(). Diretorio vazio e sucesso, nao erro.
 class ResponseFactory {
 public:
 	static Response makeError(int code, const ServerConfig& cfg);

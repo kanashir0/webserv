@@ -28,9 +28,6 @@ Response GetHandler::handle(const Request& req,
 		return ResponseFactory::makeError(HTTP_NOT_FOUND, srv);
 	}
 	if (S_ISDIR(info.st_mode)) {
-		// Sem a barra final o navegador resolve os links relativos do index a
-		// partir do diretorio pai. Redireciona com o path cru: o cliente
-		// reenvia a URI ja codificada.
 		if (!endsWithSlash(req.path())) {
 			return ResponseFactory::makeRedirect(req.path() + "/", HTTP_MOVED_PERMANENTLY);
 		}
@@ -42,8 +39,6 @@ Response GetHandler::handle(const Request& req,
 	return serveFile(fsPath, srv);
 }
 
-// makeFile ja classifica 404/403/500 via stat()+access() e converte em makeError
-// com a error_page do vhost; repetir as checagens aqui so duplicaria a logica.
 Response GetHandler::serveFile(const std::string& fsPath, const ServerConfig& srv) {
 	return ResponseFactory::makeFile(fsPath, MimeTypes::fromPath(fsPath), srv);
 }
@@ -60,8 +55,6 @@ Response GetHandler::serveDirectory(const std::string& fsPath,
 		}
 	}
 	if (loc.autoindex) {
-		// uriPath cru de proposito: makeAutoindex percent-encoda as entradas mas
-		// nao a base, entao a base precisa chegar ja codificada.
 		return ResponseFactory::makeAutoindex(fsPath, uriPath, srv);
 	}
 	return ResponseFactory::makeError(HTTP_FORBIDDEN, srv);

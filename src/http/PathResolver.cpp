@@ -11,8 +11,6 @@ static int hexValue(char c) {
 	return -1;
 }
 
-// O RequestParser nao decodifica: path() vem cru da request line. Sem decodificar
-// aqui, "/a%20b.txt" procuraria um arquivo chamado literalmente "a%20b.txt".
 bool PathResolver::percentDecode(const std::string& raw, std::string& out) {
 	out.clear();
 	out.reserve(raw.size());
@@ -35,9 +33,6 @@ bool PathResolver::percentDecode(const std::string& raw, std::string& out) {
 	return true;
 }
 
-// Barreira de path traversal. Roda DEPOIS do decode, senao "%2e%2e%2f" passaria
-// intacto pelo filtro e so viraria "../" mais tarde. Feita sobre os segmentos da
-// string porque realpath() nao esta na lista de funcoes autorizadas do subject.
 static bool normalizePath(const std::string& path, std::string& out) {
 	StringVec              segments;
 	std::string::size_type i = 0;
@@ -48,7 +43,7 @@ static bool normalizePath(const std::string& path, std::string& out) {
 			: path.substr(i, slash - i);
 		if (segment == "..") {
 			if (segments.empty()) {
-				return false;  // subiria acima da raiz do location
+				return false;
 			}
 			segments.erase(segments.end() - 1);
 		} else if (!segment.empty() && segment != ".") {
@@ -69,10 +64,6 @@ static bool normalizePath(const std::string& path, std::string& out) {
 	return true;
 }
 
-// Semantica de alias, conforme o subject (IV.3): "se o URL /kapouet estiver
-// enraizado em /tmp/www, o URL /kapouet/pouic/toto/pouet procurara por
-// /tmp/www/pouic/toto/pouet" -- o prefixo do location e descartado. Difere do
-// `root` do nginx, que concatenaria o prefixo.
 static std::string stripLocationPrefix(const std::string& path, const std::string& locPath) {
 	std::string prefix = locPath;
 	if (prefix.size() > 1 && prefix[prefix.size() - 1] == '/') {
@@ -86,7 +77,7 @@ static std::string stripLocationPrefix(const std::string& path, const std::strin
 		return "/";
 	}
 	if (rest[0] != '/') {
-		return path;  // casou meio segmento: /kapouetX nao pertence a /kapouet
+		return path;
 	}
 	return rest;
 }
@@ -141,8 +132,6 @@ int PathResolver::resolve(const std::string& rawPath,
 		return HTTP_FORBIDDEN;
 	}
 
-	// Alias vale so quando o location declara root proprio: e ele que substitui o
-	// prefixo. O root do bloco server mapeia "/", entao ali o path vai inteiro.
 	const bool         hasLocationRoot = !loc.root.empty();
 	const std::string& root            = hasLocationRoot ? loc.root : srv.root;
 	if (root.empty()) {
