@@ -1,227 +1,301 @@
 # Planejamento — Backlog do Webserv
 
 > **Documento mestre** para o time de 3 pessoas. Use este arquivo como ponto de entrada para entender:
-> 1. Quais são os épicos do projeto e o valor de cada um.
-> 2. Como priorizar e em qual ordem atacar.
-> 3. Como dividir as tarefas entre M1, M2 e M3 sem que alguém fique bloqueado.
-> 4. Como acompanhar a evolução por sprint.
+> 1. Em que ponto o projeto está hoje.
+> 2. Quais são os épicos e o valor de cada um.
+> 3. O que atacar primeiro.
+> 4. Como dividir o trabalho entre M1, M2 e M3 sem que alguém fique bloqueado.
 
 ---
 
 ## 1. Mapa de épicos
 
-| # | Épico | Arquivo | Dono primário | Foco |
-|---|-------|---------|---------------|------|
-| 01 | Motor de Rede e Reactor Pattern | [`epic-01-motor-de-rede.md`](epic-01-motor-de-rede.md) | M1 | Sockets, `poll()`, ciclo de vida de cliente, RAII de FDs |
-| 02 | Parser de Configuração | [`epic-02-parser-configuracao.md`](epic-02-parser-configuracao.md) | M2 | Leitura de `.conf` estilo Nginx |
-| 03 | Parser HTTP de Requisições | [`epic-03-parser-http.md`](epic-03-parser-http.md) | M2 | Bytes do socket → `Request` validado |
-| 04 | Resposta HTTP e Roteamento | [`epic-04-resposta-roteamento.md`](epic-04-resposta-roteamento.md) | M3 | `Response`, `Router`, `ResponseFactory` |
-| 05 | Handlers HTTP (GET/POST/DELETE) | [`epic-05-handlers-http.md`](epic-05-handlers-http.md) | M3 | Lógica dos métodos HTTP |
-| 06 | CGI | [`epic-06-cgi.md`](epic-06-cgi.md) | M1 + M3 | Execução de scripts dinâmicos não-bloqueante |
-| 07 | Bônus: Sessões e Cookies | [`epic-07-bonus-sessoes.md`](epic-07-bonus-sessoes.md) | M3 | `WEBSERV_SESSION` cookie + TTL |
-| 08 | Qualidade, Testes e Integração | [`epic-08-qualidade-testes.md`](epic-08-qualidade-testes.md) | Todos | siege, valgrind, browsers, edge cases, defense checklist |
+**Legenda de status:** ✅ feita e correta · ⚠️ feita, precisa reabrir · ❌ não iniciada
 
-**Total de tarefas:** ~62 tarefas distribuídas. Tamanhos: 22 S, 26 M, 11 L, 1 XL.
+| # | Épico | Arquivo | Dono | Status |
+|---|-------|---------|------|--------|
+| 01 | Motor de Rede e Reactor Pattern | [`epic-01-motor-de-rede.md`](epic-01-motor-de-rede.md) | M1 | 🟡 5 ✅ / 8 ⚠️ / 0 ❌ |
+| 02 | Parser de Configuração | [`epic-02-parser-configuracao.md`](epic-02-parser-configuracao.md) | M2 | 🟢 5 ✅ / 2 ⚠️ / 1 ❌ |
+| 03 | Parser HTTP de Requisições | [`epic-03-parser-http.md`](epic-03-parser-http.md) | M2 | 🟢 9 ✅ / 0 ⚠️ / 1 ❌ |
+| 04 | Resposta HTTP e Roteamento | [`epic-04-resposta-roteamento.md`](epic-04-resposta-roteamento.md) | M3 | 🟢 7 ✅ / 0 ⚠️ / 3 ❌ |
+| 05 | Handlers HTTP (GET/POST/DELETE) | [`epic-05-handlers-http.md`](epic-05-handlers-http.md) | M3 | 🟡 4 ✅ / 0 ⚠️ / 2 ❌ |
+| 06 | CGI | [`epic-06-cgi.md`](epic-06-cgi.md) | M1 + M3 | 🔴 0 ✅ / 1 ⚠️ / 8 ❌ |
+| 07 | Bônus: Sessões e Cookies | [`epic-07-bonus-sessoes.md`](epic-07-bonus-sessoes.md) | M3 | 🟡 2 ✅ / 2 ⚠️ / 3 ❌ |
+| 08 | Qualidade, Testes e Integração | [`epic-08-qualidade-testes.md`](epic-08-qualidade-testes.md) | Todos | 🔴 0 ✅ / 0 ⚠️ / 8 ❌ |
 
----
-
-## 2. Princípios de priorização
-
-1. **Caminho crítico primeiro.** O servidor só sobe ponta-a-ponta quando E01 + E02 + E03 + E04 (parcial) + E05 (parcial) estão integrados. Tudo isso é mandatory v0.1.
-2. **Trabalho paralelo desde o dia 1.** O esqueleto do projeto e os contratos (`.hpp`) já estão prontos. Cada membro começa pelo seu épico próprio sem depender dos outros.
-3. **Mocks e testes unitários antes da integração.** M2 testa o parser com strings inline; M3 testa handlers com `Request` mockado; M1 testa o EventLoop com mocks de `IPollable`. Isso evita o gargalo de "esperar o outro membro terminar".
-4. **CGI é integração coordenada.** Não comece o E06 antes de E03 (RequestParser) e E05 (PostHandler) estarem prontos. CGI é o ponto de maior risco — agendar pair programming.
-5. **Bônus depois do mandatory.** Não inicie E07 antes de o defense do mandatory estar verde. Resistir à tentação de fazer "só uma feature de sessão" no meio do desenvolvimento principal.
-6. **Qualidade é contínua, não no final.** E08 é executado em paralelo desde o sprint 2 — cada PR deve passar por valgrind antes de merge.
+**Total: 71 tarefas** — 32 ✅ · 13 ⚠️ · 26 ❌.
+(69 do backlog original + 2 criadas na auditoria: E04-T10 e E06-T09. A contagem de "~62"
+das versões anteriores deste documento estava errada.)
 
 ---
 
-## 3. Roadmap em sprints (sugestão de 4 sprints de 1 semana)
+## 1.1. Estado atual — auditoria de 02/08/2026
 
-> Ajuste a duração conforme disponibilidade do time. Os 4 sprints abaixo assumem ~10h/semana por pessoa.
+> Feita sobre a branch `feat/request-pipeline`, com o binário compilado e **em execução**.
+> `make re` compila limpo com `-Wall -Wextra -Werror -std=c++98 -pedantic`.
 
-### 🟢 Sprint 0 — Setup (já concluído)
-**Status:** ✅ Esqueleto pronto, branches definidas, arquivos `.cpp` em stub.
-- Headers (`.hpp`) definidos em `include/`.
-- Stubs em `.cpp` compilam sem warnings.
-- Configs base em `conf/` e `tests/configs/`.
-- Scripts de teste em `tests/scripts/`.
+### O que o servidor faz hoje (verificado, não inferido)
 
-### 🟡 Sprint 1 — Núcleo independente (semana 1)
-**Objetivo:** cada membro destrava o caminho crítico do seu pilar isoladamente.
+| Cenário | Resultado | |
+|---------|-----------|---|
+| `GET /` | 200 + `www/index.html` | ✅ |
+| `GET /__nope__` | 404 com `www/errors/404.html` | ✅ |
+| `PUT /` | 405 | ✅ |
+| body 2 MB contra limite de 1m | 413 | ✅ |
+| `HTTP/2.0` | 505 | ✅ |
+| HTTP/1.1 sem `Host` | 400 | ✅ |
+| `/../../etc/passwd` | 403 | ✅ |
+| keep-alive (2 requests, mesma conexão) | 200 + 200 | ✅ |
+| **`GET /cgi-bin/hello.py`** | **200 com o código-fonte do script** | ❌ crítico |
+| **`POST /upload/a.txt`** | **500** (`www/uploads` não existe no repo) | ❌ |
+| **2 `server{}` na mesma porta** | funciona, mas com `BIND FALHOU` no log | ❌ |
 
-| Membro | Tarefas | Tamanho total |
-|--------|---------|--------------|
-| **M1** | E01-T01, T02, T03 (Socket), E01-T04, T05, T06 (EventLoop) | ~2L + 4S |
-| **M2** | E02-T01–T03 (parser config básico), E03-T01–T03 (parser HTTP básico) | ~2L + 4M |
-| **M3** | E04-T01–T05 (Response + Factory), E07-T01 (Session basics) | ~5M + 1S |
+### Onde o projeto está
 
-**Marco:** ao fim do sprint, M1 tem `EventLoop` rodando com mocks; M2 parseia `.conf` e request line + headers; M3 gera `Response` válido para qualquer cenário.
+O **caminho crítico do mandatory está de pé**: config → parser HTTP → roteamento → handlers
+→ resposta funciona ponta a ponta, com as 5 restrições do subject respeitadas (um único
+`poll()` em `EventLoop.cpp:37`, zero `fork()`, zero threads, I/O só dentro dos callbacks,
+C++98 estrito).
 
-### 🟠 Sprint 2 — Integração mínima E2E (semana 2)
-**Objetivo:** primeira request real ponta-a-ponta funciona.
+A qualidade é desigual por módulo:
 
-| Membro | Tarefas | Tamanho total |
-|--------|---------|--------------|
-| **M1** | E01-T07 (ListeningSocket), E01-T08 (Server::start), E01-T09, T10 (Client) | ~2L + 2M |
-| **M2** | E03-T04, T05 (body parsing), E02-T04, T05 (location + validação), E02-T06 (findLocation) | ~2L + 1M + 1S |
-| **M3** | E04-T06, T07 (Router), E05-T01 (GetHandler), E05-T04 (DeleteHandler) | ~1L + 1M + 1S |
+- **M2 (`ConfigParser`, `RequestParser`)** e **M3 (`Router`, `ResponseFactory`,
+  `PathResolver`, handlers)** estão em nível de produção. O `RequestParser` implementa
+  defesas contra request smuggling que nem foram pedidas.
+- **M1 (`core/`, `cgi/`)** é o elo fraco: funciona no caminho feliz, mas **8 das 13 tarefas
+  do E01 têm defeitos** que não cumprem os próprios critérios de aceite, e o CGI inteiro é
+  stub.
 
-**Marco:** `curl http://localhost:8080/` retorna 200 com `index.html`; `curl -X DELETE` funciona; primeiro `curl-suite.sh` verde.
+### Bugs abertos, por severidade
 
-### 🔴 Sprint 3 — POST + CGI + estresse (semana 3)
-**Objetivo:** mandatory completo, incluindo o componente mais difícil (CGI).
+**21 bugs catalogados.** Cada um tem entrada completa (sintoma, arquivo:linha, esperado) na
+seção "Bugs e ajustes abertos" do épico correspondente.
 
-| Membro | Tarefas | Tamanho total |
-|--------|---------|--------------|
-| **M1** | E06-T03 (CgiHandler::start), E06-T04, T05 (pipes + timeout), E01-T11–T13 | ~1XL + 1L + 2M + 1S |
-| **M2** | E03-T06–T10 (finalizar parser HTTP), E02-T07–T08 (testes config) | ~2M + 3S |
-| **M3** | E05-T02, T03 (PostHandler), E06-T01, T02, T06 (CgiEnv + makeFromCgi), E05-T05, T06 | ~1L + 3M + 1S |
-| **Pair** | E06-T07 (integração Client+CGI) | ~1M (M1+M3 juntos) |
-
-**Marco:** `curl --data-binary @big.bin http://localhost:8080/upload` funciona; `curl http://localhost:8080/cgi-bin/post_echo.py` ecoa body; `siege -c20 -t10s` sem queda. **Tag `v0.1` candidata.**
-
-### 🟣 Sprint 4 — Polish, bônus e defense (semana 4)
-**Objetivo:** valgrind 100% limpo, browsers OK, sessões funcionando, defense pronto.
-
-| Membro | Tarefas | Tamanho total |
-|--------|---------|--------------|
-| **M1** | E08-T02 (siege), E08-T03 (valgrind do core), revisão final do EventLoop | ~2M |
-| **M2** | E08-T01 (curl-suite), E08-T06 (multi-server), code review M1+M3 | ~2M |
-| **M3** | E07 completo (sessions), E08-T03 (valgrind dos handlers) | ~1M + 5S/M |
-| **Todos** | E08-T04, T05, T07, T08 | ~1M + 2S |
-
-**Marco:** Tag `v1.0` (com bônus). Defense pronto.
-
----
-
-## 4. Distribuição final por membro (visão consolidada)
-
-### M1 — Core de Rede (16 tarefas)
-- **Épico 01 (próprio):** E01-T01 → T13 (todas as 13 tarefas).
-- **Épico 06 (compartilhado):** E06-T03, T04, T05, T07.
-- **Épico 08:** E08-T02 (siege), E08-T03 parcial.
-
-**Total estimado:** ~3 XL/L + 7 M + 6 S.
-
-### M2 — Parsers e Configuração (19 tarefas)
-- **Épico 02 (próprio):** E02-T01 → T08 (todas as 8 tarefas).
-- **Épico 03 (próprio):** E03-T01 → T10 (todas as 10 tarefas).
-- **Épico 08:** E08-T01 (curl-suite), E08-T06 (multi-server).
-
-**Total estimado:** ~3 L + 11 M + 5 S.
-
-### M3 — Lógica HTTP, Sessões, CGI env (24 tarefas)
-- **Épico 04 (próprio):** E04-T01 → T09 (todas as 9 tarefas).
-- **Épico 05 (próprio):** E05-T01 → T06 (todas as 6 tarefas).
-- **Épico 06 (compartilhado):** E06-T01, T02, T06, T07 (parcial).
-- **Épico 07 (próprio):** E07-T01 → T07 (todas as 7 tarefas).
-- **Épico 08:** E08-T03 parcial.
-
-**Total estimado:** ~3 L + 16 M + 5 S.
-
-### Tarefas compartilhadas (Todos)
-- E06-T08 (testes CGI ponta-a-ponta).
-- E08-T03 (valgrind — cada um valida seu domínio).
-- E08-T04 (browsers — manual).
-- E08-T05 (edge cases).
-- E08-T07 (documentação).
-- E08-T08 (code review final).
+| Severidade | ID | Resumo | Épico |
+|---|---|---|---|
+| 🔴 Crítica | BUG-05-01 | `GET` em script CGI devolve o **código-fonte** | [05](epic-05-handlers-http.md) |
+| 🔴 Alta | BUG-01-02 | `accept()` lança exceção e derruba o servidor | [01](epic-01-motor-de-rede.md) |
+| 🔴 Alta | BUG-01-03 | `onReadable` cria `Client` com FD -1 em loop infinito | [01](epic-01-motor-de-rede.md) |
+| 🔴 Alta | BUG-01-04 | `Server::start` agrupa vhosts errado; bind redundante falha | [01](epic-01-motor-de-rede.md) |
+| 🔴 Alta | BUG-01-05 | `Host: x:8080` nunca casa com `server_name` → vhost sempre default | [01](epic-01-motor-de-rede.md) |
+| 🔴 Alta | BUG-01-06 | Timeout de cliente usa ms como s → 16 min em vez de 60 s | [01](epic-01-motor-de-rede.md) |
+| 🔴 Alta | BUG-07-01 | Dois `SessionStore`; o `gc()` roda no vazio | [07](epic-07-bonus-sessoes.md) |
+| 🔴 Alta | BUG-07-02 | `generateId` previsível — session fixation | [07](epic-07-bonus-sessoes.md) |
+| 🟡 Média | BUG-01-07 | `~EventLoop` vaza os `IPollable*` no shutdown | [01](epic-01-motor-de-rede.md) |
+| 🟡 Média | BUG-01-08 | Estados mortos no `Client`; `recv` ignora `errno` | [01](epic-01-motor-de-rede.md) |
+| 🟡 Média | BUG-01-09 | Keep-alive descarta requests em pipelining | [01](epic-01-motor-de-rede.md) |
+| 🟡 Média | BUG-05-02 | `www/uploads` não versionado → todo upload dá 500 | [05](epic-05-handlers-http.md) |
+| 🟢 Baixa | BUG-01-01 | `setNonBlocking` apaga as flags do FD | [01](epic-01-motor-de-rede.md) |
+| 🟢 Baixa | BUG-01-10 | `std::cout` de debug, código comentado, erros sem `errno` | [01](epic-01-motor-de-rede.md) |
+| 🟢 Baixa | BUG-02-01 | 3 validações semânticas de config faltando | [02](epic-02-parser-configuracao.md) |
+| 🟢 Baixa | BUG-02-02 | Diretiva é `return`; docs dizem `redirect` | [02](epic-02-parser-configuracao.md) |
+| 🟢 Baixa | BUG-02-03 | O número da linha do `ParseError` nunca é exibido | [02](epic-02-parser-configuracao.md) |
+| 🟢 Baixa | BUG-06-01 | `makeFromCgi` devolve 502 onde o critério pedia tolerância | [06](epic-06-cgi.md) |
+| 🟢 Baixa | BUG-07-03 | `setCookie` sem `Path=/` por padrão | [07](epic-07-bonus-sessoes.md) |
+| 🟢 Baixa | BUG-08-01 | `curl-suite` espera 403 onde o servidor responde 405 | [08](epic-08-qualidade-testes.md) |
+| 🟢 Baixa | BUG-08-02 | `curl-suite` não prepara nem limpa `www/uploads` | [08](epic-08-qualidade-testes.md) |
 
 ---
 
-## 5. Bloqueios cruzados a antecipar
+## 2. Ordem de ataque recomendada
 
-| Quem espera | Pelo quê | De quem | Mitigação |
-|-------------|----------|---------|-----------|
-| M1 (E01-T08 Server::start) | `vector<ServerConfig>` válido | M2 (E02-T03) | M1 pode começar com config hardcoded mockada; integra depois. |
-| M1 (E01-T09 Client::onReadable) | `RequestParser::feed` | M2 (E03-T01) | M1 mocka um parser "fake" que retorna `COMPLETE` após 1 KB. |
-| M1 (E01-T10 Client::onWritable) | `Response::toString` | M3 (E04-T01) | M1 monta string HTTP fixa para teste. |
-| M3 (E05-T01 handlers) | `LocationConfig::findLocation` | M2 (E02-T06) | M3 cria mock de `LocationConfig` em tests/. |
-| M3 (E07-T06 attachSessionCookie) | E04-T08 (Request::cookie) | M3 (próprio) | Sequencia interna do M3. |
-| M1 (E06-T03 CgiHandler::start) | `CgiEnv::asEnvp` | M3 (E06-T02) | Pair programming na semana 3. |
-| Todos (E08-T08 review) | Tudo pronto | Todos | Marca data fixa para review final no sprint 4. |
+> Substitui o roadmap de sprints da seção 4, que virou histórico.
 
-**Regra de ouro:** se você está bloqueado por mais de 1 dia esperando alguém, mocka a dependência e sigam em frente. Os contratos (`.hpp`) são suficientes para isso.
+### 🔴 Fase A — Estabilizar o motor de rede (M1)
+
+**Fechar BUG-01-01 a BUG-01-09.** É a fase que desbloqueia todas as outras.
+
+Motivo: o Épico 06 (CGI) vai empilhar pipes, um segundo tipo de pollable e uma negociação de
+ownership em cima do `EventLoop`. Fazer isso enquanto o `accept()` derruba o processo, o
+timeout está 16× errado e o ownership dos pollables já é ambíguo transforma cada bug de CGI
+numa caça ao fantasma. **Barato agora, caríssimo depois.**
+
+Ordem sugerida dentro da fase: BUG-01-02 e BUG-01-03 juntos (um mascara o outro) →
+BUG-01-04 → BUG-01-05 → BUG-01-06 → BUG-01-07 → BUG-01-08 → BUG-01-09 → BUG-01-01/10.
+
+**Saída da fase:** `siege -c50 -t30s` (E08-T02) roda sem queda e `valgrind --track-fds`
+(E08-T03) fecha limpo.
+
+### 🟠 Fase B — CGI (M1 + M3, pair programming)
+
+**Épico 06 inteiro**, incluindo a nova E06-T09 que resolve o BUG-05-01 crítico.
+
+É o maior bloco pendente (9 tarefas, 1 XL) e o de maior peso no defense. Três decisões de
+design já foram fixadas nas notas de escopo do épico — **leia-as antes de escrever a
+primeira linha**: quem implementa `checkTimeout`, como os 2 pipes viram `IPollable`, e quem
+é dono do `CgiHandler`.
+
+Pré-requisitos de fora do épico: BUG-01-06, BUG-01-07 e BUG-01-01.
+
+### 🟡 Fase C — Fechar o mandatory
+
+- E04-T08 (`Request::cookie`) e E04-T10 (`Date`/`Server`/`Connection`)
+- E05-T03 (caminho POST do CGI, depois da Fase B)
+- BUG-05-02 (`.gitkeep` em `www/uploads`) e BUG-02-01/02/03
+- E08-T01 e E08-T05 — as duas suítes de teste, agora ampliadas
+- E08-T04 (browsers), E08-T06 (multi-server), E08-T08 (review final)
+
+**Saída da fase: tag `v0.1`.**
+
+### 🟣 Fase D — Bônus
+
+**Épico 07.** Começar por BUG-07-01 (unificar o `SessionStore`) — sem isso, T03, T06 e T07
+seriam escritas sobre uma base errada. Depois E07-T04 (BUG-07-02), E07-T06, E07-T07.
+
+**Saída da fase: tag `v1.0`.**
+
+> **Não antecipe a Fase D.** Metade do Épico 07 estar pronta é tentador, mas o CGI vale nota
+> no defense e sessões não. O bônus só conta com o mandatory 100% verde.
 
 ---
 
-## 6. Convenções de pull request
+## 3. Política de testes
 
-- **Tamanho:** PRs idealmente < 500 linhas (já em `docs/git-workflow.md`).
-- **Título:** `feat(<epico>): <verb> <objeto>` — ex: `feat(parser): add chunked body support`.
+> Definida em 02/08/2026. Detalhes e consequências em
+> [`epic-08-qualidade-testes.md`](epic-08-qualidade-testes.md).
+
+O padrão de validação do projeto é **exclusivamente** por scripts shell contra o servidor
+rodando:
+
+| Script | Papel |
+|--------|-------|
+| `tests/scripts/curl-suite.sh` | Caminho feliz: status, headers, bodies, ciclo POST→GET→DELETE, vhosts, CGI |
+| `tests/scripts/test-edge-cases.sh` | Casos-limite: malformados, fragmentação, limites, traversal, timeouts |
+| `tests/scripts/run-siege.sh` | Carga e estabilidade |
+| `tests/scripts/run-valgrind.sh` | Memória e FDs |
+
+**Não haverá testes unitários em C++.** As quatro tarefas que previam isso (E02-T08,
+E03-T10, E04-T09, E05-T06) foram reescopadas para casos nesses scripts, e sua cobertura foi
+absorvida por E08-T01 e E08-T05. Nenhum diretório `tests/unit/` deve ser criado, e nenhuma
+tarefa pode ser marcada `done` alegando cobertura unitária.
+
+---
+
+## 4. Roadmap original em sprints (histórico)
+
+> Mantido para registro. **Superado pela seção 2.** Os Sprints 0, 1 e 2 foram entregues; o
+> Sprint 3 ficou parcial (o CGI não começou) e o Sprint 4 não começou.
+
+- **Sprint 0 — Setup** ✅ esqueleto, headers, configs base, scripts.
+- **Sprint 1 — Núcleo independente** ✅ `EventLoop`, parser de config e HTTP, `Response` e fábricas.
+- **Sprint 2 — Integração mínima E2E** ✅ `curl http://localhost:8080/` responde 200; roteamento e handlers ligados.
+- **Sprint 3 — POST + CGI + estresse** 🟡 parcial: POST/upload feito, **CGI não começou**, siege não rodou.
+- **Sprint 4 — Polish, bônus e defense** ❌ não começou.
+
+---
+
+## 5. Distribuição por membro
+
+### M1 — Core de Rede
+- **Épico 01:** todas as 13 tarefas — **8 a reabrir** (o grosso da Fase A).
+- **Épico 06:** T03, T04, T05, T07 — o bloco XL do projeto.
+- **Épico 08:** T02 (siege), T03 parcial.
+
+### M2 — Parsers e Configuração
+- **Épico 02:** 8 tarefas — T05 e T07 a reabrir, T08 reescopada.
+- **Épico 03:** 10 tarefas — **9 fechadas**, só T10 (reescopada) pendente. Módulo mais sólido do projeto.
+- **Épico 08:** T01 (curl-suite, escopo ampliado), T06 (multi-server).
+
+> M2 está com a menor dívida técnica. Bom candidato a assumir E08-T01/T05 cedo, já que as
+> suítes de teste destravam a validação das Fases A e B.
+
+### M3 — Lógica HTTP, Sessões, CGI env
+- **Épico 04:** 10 tarefas — 7 fechadas; falta T08 (cookie), T09 (reescopada), T10 (nova).
+- **Épico 05:** 6 tarefas — 4 fechadas; falta T03 (CGI) e T06 (reescopada).
+- **Épico 06:** T01, T02, T06, T09 (nova) — a parte de env e roteamento do CGI.
+- **Épico 07:** 7 tarefas — bônus, Fase D.
+
+---
+
+## 6. Bloqueios cruzados a antecipar
+
+| Quem espera | Pelo quê | Mitigação |
+|-------------|----------|-----------|
+| M1 (E06-T03) | `CgiEnv::asEnvp` populado (M3, E06-T02) | Pair programming; M1 pode testar com um envp fixo de 3 variáveis |
+| M3 (E06-T09) | Nada — só precisa de `loc.cgi`, que já existe | Pode começar **antes** da Fase B e já mata o BUG-05-01 crítico |
+| M1+M3 (E06-T07) | Decisão de ownership | **Já decidida** na nota de escopo de E06-T07; não reabrir |
+| M3 (E07-T06) | E04-T08 (`Request::cookie`) + BUG-07-01 | Sequência interna do M3 |
+| M1 (E06-T05) | BUG-01-06 corrigido | Fase A antes da Fase B |
+| Todos (E08-T02/T03) | Fase A completa | Rodar antes só produz falhas já conhecidas |
+
+**Regra de ouro:** se você está bloqueado por mais de 1 dia esperando alguém, mocka a
+dependência e siga. Os contratos (`.hpp`) são suficientes para isso.
+
+---
+
+## 7. Convenções de pull request
+
+- **Tamanho:** PRs idealmente < 500 linhas.
+- **Título:** `feat(<epico>): <verbo> <objeto>` — ex: `fix(core): strip port from Host header`.
 - **Descrição:**
-  - Link para a tarefa: `Closes E03-T05`.
+  - Link para a tarefa ou bug: `Closes E03-T05` / `Fixes BUG-01-05`.
   - Como testar (comando exato).
   - Checklist:
-    - [ ] `make re` sem warnings (`-Wall -Wextra -Werror`).
+    - [ ] `make re` sem warnings.
+    - [ ] Caso novo no `curl-suite.sh` ou `test-edge-cases.sh`.
     - [ ] Valgrind sem leaks no caso testado.
-    - [ ] Sem `printf` de debug.
-    - [ ] Critérios de aceite da tarefa marcados.
+    - [ ] Sem `printf`/`std::cout` de debug.
+    - [ ] Critérios de aceite marcados no arquivo do épico.
 - **Reviewer:** pelo menos 1 dos outros 2 membros.
 - **Merge:** squash, mensagem em inglês imperativo.
 
 ---
 
-## 7. Como interpretar os tamanhos (t-shirt sizing)
+## 8. Tamanhos (t-shirt sizing)
 
-| Tamanho | Tempo estimado | Exemplo de tarefa |
-|---------|---------------|-------------------|
-| **S** | até 2h | `Socket::setNonBlocking` (uma syscall + tratamento de erro) |
-| **M** | meio dia até 1 dia | `parseHeaders` (state machine, validações) |
-| **L** | 1–2 dias | `EventLoop::runOnce`, `parseBodyChunked` (lógica complexa, vários edge cases) |
-| **XL** | 3+ dias | `CgiHandler::start` (fork + pipes + execve + integração com loop) |
-
-Tamanhos são **estimativas iniciais**, não compromissos. Reavaliar no início de cada sprint.
+| Tamanho | Tempo | Exemplo |
+|---------|-------|---------|
+| **S** | até 2h | `Socket::setNonBlocking` |
+| **M** | meio dia a 1 dia | `parseHeaders` |
+| **L** | 1–2 dias | `EventLoop::runOnce`, `parseBodyChunked` |
+| **XL** | 3+ dias | `CgiHandler::start` |
 
 ---
 
-## 8. Riscos identificados e plano de mitigação
+## 9. Riscos identificados
 
-| Risco | Probabilidade | Impacto | Mitigação |
-|-------|---------------|---------|-----------|
-| Loop com `poll()` despachando errado e gerando recv() bloqueante | Médio | Alto (reprovação) | Code review obrigatório do E01-T04; teste unitário com FDs sem dados. |
-| CGI deixando processos zombies | Alto | Alto | `waitpid(WNOHANG)` no loop + `kill` em timeout. Validar com `ps aux \| grep python`. |
-| Path traversal não bloqueado em GET/DELETE | Médio | Crítico (segurança) | E05-T05 dedicada; revisão cruzada obrigatória. |
-| Fragmentação de requests gerando bug no parser | Alto | Médio | E03-T10 testa fragmentação byte-a-byte. |
-| FD leak em error paths | Médio | Alto | RAII (`FileDescriptor`); valgrind `--track-fds=yes` em CI. |
-| Headers múltiplos `Set-Cookie` perdidos no `std::map` | Médio | Médio | E07-T05 usa campo separado `vector<string>`. |
-| Pair programming de CGI atrasando ambos | Médio | Médio | Marcar slot fixo de 4h no sprint 3 para M1+M3 sentarem juntos. |
+| Risco | Status em 02/08/2026 |
+|-------|----------------------|
+| Loop com `poll()` despachando errado | ✅ mitigado — dispatch correto, um único `poll()` |
+| CGI deixando zombies | ⏳ em aberto — o CGI não começou; `waitpid(WNOHANG)` previsto em E06-T05 |
+| Path traversal não bloqueado | ✅ mitigado — `PathResolver::normalizePath` bloqueia antes do filesystem, verificado |
+| Fragmentação quebrando o parser | ✅ mitigado — parser lida com qualquer granularidade |
+| FD leak em error paths | 🔴 **materializado** — BUG-01-07 (shutdown) |
+| Múltiplos `Set-Cookie` perdidos no `std::map` | ✅ mitigado — campo `cookies_` separado |
+| Pair programming de CGI atrasando ambos | ⏳ em aberto — marcar slot fixo para a Fase B |
+| **Divulgação de código-fonte via CGI** | 🔴 **materializado** — BUG-05-01, não estava previsto |
+| **Virtual hosting inoperante com clientes reais** | 🔴 **materializado** — BUG-01-05, não estava previsto |
 
 ---
 
-## 9. Definition of Done (por tarefa)
+## 10. Definition of Done
 
-Uma tarefa só pode ser marcada como `done` quando **todos** abaixo são verdadeiros:
-- [ ] Critérios de aceite da tarefa estão todos marcados.
+### Por tarefa
+- [ ] Critérios de aceite todos marcados no arquivo do épico.
 - [ ] Compila sem warnings (`-Wall -Wextra -Werror -std=c++98 -pedantic`).
+- [ ] Pelo menos um caso novo em `curl-suite.sh` ou `test-edge-cases.sh` (ver seção 3).
 - [ ] Valgrind no cenário coberto: 0 bytes lost, 0 FDs leaked.
-- [ ] Sem `printf`/`std::cout` de debug deixados no código.
-- [ ] Sem código comentado (use git para ressuscitar se precisar).
+- [ ] Sem `printf`/`std::cout` de debug, sem código comentado.
 - [ ] Pelo menos 1 reviewer aprovou o PR.
-- [ ] Merge na branch da feature; merge para `main` ao final do épico.
+- [ ] Status atualizado de ❌/⚠️ para ✅ no arquivo do épico.
 
----
-
-## 10. Definition of Done (por épico)
-
-Um épico só pode ser marcado como `done` quando:
-- [ ] Todas as suas tarefas estão `done`.
-- [ ] Critério de "épico pronto" descrito no topo do arquivo está validado.
-- [ ] Merge para `main` realizado via PR de finalização.
-- [ ] Tag intermediária criada se aplicável (ex: `v0.1-mandatory` no fim do E05).
+### Por épico
+- [ ] Todas as suas tarefas em ✅ e **nenhum bug aberto** na seção "Bugs e ajustes abertos".
+- [ ] Critério de "épico pronto" do topo do arquivo validado na prática.
+- [ ] Merge para `main` via PR de finalização.
 
 ---
 
 ## 11. Quick links
 
-- [Subject 42 — Webserv](https://cdn.intra.42.fr/pdf/pdf/960/en.subject.pdf) (consulta rápida)
+- [Subject 42 — Webserv](https://cdn.intra.42.fr/pdf/pdf/960/en.subject.pdf)
 - Architecture: [`docs/architecture.md`](../docs/architecture.md)
 - Git workflow: [`docs/git-workflow.md`](../docs/git-workflow.md)
 - Testing: [`docs/testing.md`](../docs/testing.md)
-- Plano original: [`docs/ideia_inicial.md`](../docs/ideia_inicial.md)
-- README arquitetural completo: [`README.md`](../README.md)
+- README arquitetural: [`README.md`](../README.md)
 
 ---
 
-> **Lembrete final:** este backlog é vivo. Ajuste prazos, redistribua tarefas e recalibre tamanhos a cada retrospectiva semanal. O objetivo é entregar um servidor HTTP/1.1 que passe no defense da 42 — não seguir o plano à risca se a realidade pedir mudanças.
+> **Lembrete:** este backlog é vivo. O quadro de status da seção 1.1 reflete a auditoria de
+> **02/08/2026** — reveja-o a cada retrospectiva, e atualize o status da tarefa no arquivo do
+> épico junto com o PR que a fecha, não depois.
