@@ -187,7 +187,9 @@ ServerConfig ConfigParser::parseServerBlock() {
 			return srv;
 
 		if (tok == "location") {
-			skipLocationBlock();
+			state_ = IN_LOCATION;
+			srv.locations.push_back(parseLocationBlock());
+			state_ = IN_SERVER;
 			continue;
 		}
 
@@ -219,19 +221,69 @@ ServerConfig ConfigParser::parseServerBlock() {
 	}
 }
 
-// ponytail: descarte temporário — E02-T04 substitui por parseLocationBlock().
-void ConfigParser::skipLocationBlock() {
-	nextToken();      // path
+LocationConfig ConfigParser::parseLocationBlock() {
+	LocationConfig loc;
+
+	loc.path = nextToken();
+	if (loc.path.empty() || loc.path == "{" || loc.path == "}" || loc.path == ";")
+		throw ParseError("missing path in location block", line_);
+	if (loc.path[0] != '/')
+		throw ParseError("location path must start with '/': '" + loc.path + "'", line_);
 	expect("{");
 
-	for (std::size_t depth = 1; depth > 0;) {
+	for (;;) {
 		std::string tok = nextToken();
 		if (tok.empty())
 			throw ParseError("unexpected EOF inside location block", line_);
-		if (tok == "{") ++depth;
-		else if (tok == "}") --depth;
+		if (tok == "}")
+			return loc;
+
+		StringVec args = readDirectiveArgs(tok);
+
+		if (tok == "methods") {
+			requireArgCount(tok, args, 1, 0, line_);
+			for (std::size_t i = 0; i < args.size(); ++i) {
+				const std::string method = StringUtils::toUpper(args[i]);
+				if (method != "GET" && method != "POST" && method != "DELETE")
+					throw ParseError("unsupported method '" + args[i] + "'", line_);
+				loc.methods.push_back(method);
+			}
+		} else if (tok == "root") {
+			requireArgCount(tok, args, 1, 1, line_);
+			loc.root = args[0];
+		} else if (tok == "index") {
+			requireArgCount(tok, args, 1, 1, line_);
+			loc.index = args[0];
+		} else if (tok == "autoindex") {
+			requireArgCount(tok, args, 1, 1, line_);
+			if (args[0] == "on")
+				loc.autoindex = true;
+			else if (args[0] == "off")
+				loc.autoindex = false;
+			else
+				throw ParseError("autoindex expects 'on' or 'off', got '" + args[0] + "'", line_);
+		} else if (tok == "return") {
+			requireArgCount(tok, args, 1, 2, line_);
+			if (args.size() == 2) {
+				loc.redirectCode = parseStatusCode(args[0], line_);
+				loc.redirect     = args[1];
+			} else {
+				loc.redirect = args[0];
+			}
+		} else if (tok == "upload_store") {
+			requireArgCount(tok, args, 1, 1, line_);
+			loc.uploadStore = args[0];
+		} else if (tok == "client_max_body_size") {
+			requireArgCount(tok, args, 1, 1, line_);
+			loc.clientMaxBodySize = parseSize(args[0], line_);
+		} else if (tok == "cgi") {
+			requireArgCount(tok, args, 2, 2, line_);
+			if (args[0].empty() || args[0][0] != '.')
+				throw ParseError("cgi extension must start with '.': '" + args[0] + "'", line_);
+			loc.cgi[args[0]] = args[1];
+		} else {
+			throw ParseError("unknown directive '" + tok + "' in location block", line_);
+		}
 	}
 }
-
-LocationConfig ConfigParser::parseLocationBlock() { return LocationConfig(); }
 

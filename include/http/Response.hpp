@@ -14,7 +14,6 @@ public:
 	void setStatus(int code);
 	void setHeader(const std::string& key, const std::string& value);
 	void setBody(const std::string& body);
-	void appendBody(const std::string& chunk);
 	void setCookie(const std::string& name,
 	               const std::string& value,
 	               const std::string& options = "Path=/");

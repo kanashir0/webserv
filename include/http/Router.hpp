@@ -14,14 +14,13 @@ class SessionStore;
 
 class Router {
 public:
-	Router(const std::vector<ServerConfig>& configs, SessionStore& sessions);
+	Router(SessionStore& sessions);
 	~Router();
 
 	Response route(const Request& req, const ServerConfig& vhost);
 
 private:
-	const std::vector<ServerConfig>& configs_;
-	SessionStore&                    sessions_;
+	SessionStore& sessions_;
 
 	GetHandler    getH_;
 	PostHandler   postH_;

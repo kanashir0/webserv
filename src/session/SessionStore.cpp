@@ -26,6 +26,8 @@ Session* SessionStore::find(const std::string& id) {
 
 void SessionStore::drop(const std::string& id) { store_.erase(id); }
 
+void SessionStore::onTick() { gc(); }
+
 void SessionStore::gc() {
 	std::time_t now = std::time(0);
 	std::map<std::string, Session>::iterator it = store_.begin();

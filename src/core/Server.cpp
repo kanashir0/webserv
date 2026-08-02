@@ -97,6 +97,7 @@ void Server::start() {
 			std::cout << "FALHA EM BINDAR LISTENEN (SERVIDOR)" << e.what() << std::endl;
 		}
 	}
+	loop_.setTickHandler(&sessions_);
 	loop_.run();
 }
 

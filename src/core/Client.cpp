@@ -36,6 +36,9 @@ short Client::interest() const   {
 		case READING_BODY:
 			return POLLIN;
 
+		case ROUTING:
+			return 0;
+
 		case WRITING_RESPONSE:
 			return POLLOUT;
 
@@ -63,10 +66,13 @@ void  Client::onReadable()       {
 
 	if (result == RequestParser::NEED_MORE)
 		return;
-	if (result == RequestParser::COMPLETE)
-		state_ = ROUTING;
-	if (result == RequestParser::BAD_REQUEST) {
+	if (result == RequestParser::COMPLETE) {
+		request_ = parser_.take();
+		response_ = router_.route(request_, matchVirtualHost());
+		state_ = WRITING_RESPONSE;
+	} else { // BAD_REQUEST, URI_TOO_LONG, BODY_TOO_LARGE, VERSION_UNSUPPORTED
 		buildErrorResponse(parser_.errorStatus());
+		closeAfterWrite_ = true; // parser em estado de erro: sem keep-alive
 		state_ = WRITING_RESPONSE;
 	}
 }
