@@ -33,11 +33,7 @@ int   Client::fd() const         {
 short Client::interest() const   {
 	switch (state_) {
 		case READING_HEADERS:
-		case READING_BODY:
 			return POLLIN;
-
-		case ROUTING:
-			return 0;
 
 		case WRITING_RESPONSE:
 			return POLLOUT;
@@ -110,7 +106,6 @@ void  Client::onWritable()       {
 	}
 
 	if (request_.keepAlive()) {
-		parser_.reset();
 		outBuffer_.clear();
 		outOffset_ = 0;
 		state_ = READING_HEADERS;
@@ -128,12 +123,14 @@ Client::State Client::state() const          { return state_; }
 std::time_t   Client::lastActivity() const   { return lastActivity_; }
 
 const ServerConfig& Client::matchVirtualHost() const {
-	std::string host = request_.header("Host");
+	std::string hostPort = request_.header("Host");
+
+	std::string host = hostPort.substr(0, hostPort.find(":"));
 
 	for (size_t i = 0; i < vhosts_.size(); i++) {
 		StringVec serverName = vhosts_[i].getServerNames();
 		for (size_t j = 0; j < serverName.size(); j++) {
-			if (host == serverName[j])
+			if (StringUtils::iequals(host, serverName[j]))
 				return vhosts_[i];
 		}
 	}

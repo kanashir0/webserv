@@ -1,7 +1,12 @@
 #include "core/EventLoop.hpp"
 
 EventLoop::EventLoop() : pollables_(), tickHandler_(0), running_(false) {}
-EventLoop::~EventLoop() {}
+EventLoop::~EventLoop() {
+	for (std::vector<IPollable*>::iterator it = pollables_.begin();
+	     it != pollables_.end(); ++it) {
+		delete *it;
+	}
+}
 
 void EventLoop::setTickHandler(ITickable* handler) { tickHandler_ = handler; }
 
@@ -63,7 +68,7 @@ void EventLoop::runOnce(int timeoutMs) {
 void EventLoop::run() {
 	running_ = true;
 	while (running_) {
-		runOnce(1000);
+		runOnce(60);
 		reapClosed();
 
 		if (tickHandler_)
