@@ -5,69 +5,78 @@
 #include "core/IPollable.hpp"
 #include "core/Client.hpp"
 #include "common/Socket.hpp"
+#include "common/Logger.hpp"
 #include "config/ServerConfig.hpp"
 #include "session/SessionStore.hpp"
 #include <vector>
 
+struct Endpoint {
+	std::string host;
+	int         port;
+};
+
+typedef std::pair<std::string, int> Endpoint;
+
 class Router;
 
 class ListeningSocket : public IPollable {
-public:
-	ListeningSocket(const std::string& host,
-	                int port,
-	                const std::vector<ServerConfig>& vhosts,
-	                Router& router,
-	                SessionStore& sessions,
-	                EventLoop& loop);
-	~ListeningSocket();
+	public:
+		ListeningSocket(const std::string& host,
+		                int port,
+		                const std::vector<ServerConfig>& vhosts,
+		                Router& router,
+		                SessionStore& sessions,
+		                EventLoop& loop);
+		~ListeningSocket();
 
-	int   fd() const;
-	short interest() const;
-	void  onReadable();
-	void  onWritable();
-	void  onHangup();
-	bool  wantsClose() const;
+		int   fd() const;
+		short interest() const;
+		void  onReadable();
+		void  onWritable();
+		void  onHangup();
+		bool  wantsClose() const;
 
-	void        addServer(ServerConfig& config);
-	void        checkTimeout(time_t now, time_t timeout);
+		void        addServer(ServerConfig& config);
+		void        checkTimeout(time_t now, time_t timeout);
 
-	std::string getHost();
-	int         getPort();
+		std::string getHost();
+		int         getPort();
 
-private:
-	Socket                           socket_;
-	std::string                      host_;
-	int                              port_;
-	std::vector<ServerConfig>        vhosts_;
-	Router&                          router_;
-	SessionStore&                    sessions_;
-	EventLoop&                       loop_;
+	private:
+		Socket                           socket_;
+		std::string                      host_;
+		int                              port_;
+		std::vector<ServerConfig>        vhosts_;
+		Router&                          router_;
+		SessionStore&                    sessions_;
+		EventLoop&                       loop_;
 
-	ListeningSocket(const ListeningSocket&);
-	ListeningSocket& operator=(const ListeningSocket&);
+		ListeningSocket(const ListeningSocket&);
+		ListeningSocket& operator=(const ListeningSocket&);
 };
 
 class Server {
-public:
-	Server(const std::vector<ServerConfig>& configs, Router& router);
-	~Server();
+	public:
+		Server(const std::vector<ServerConfig>& configs, Router& router);
+		~Server();
 
-	void start();
-	void stop();
+		void start();
+		void stop();
 
-	EventLoop&    loop();
-	SessionStore& sessions();
+		EventLoop&    loop();
+		SessionStore& sessions();
 
-private:
-	std::vector<ServerConfig>     configs_;
-	EventLoop                     loop_;
-	std::vector<ListeningSocket*> listeners_;
-	SessionStore                  sessions_;
-	Router&                       router_;
+	private:
+		std::vector<ServerConfig>                      configs_;
+		std::map<Endpoint, std::vector<ServerConfig> > groups_;
+		EventLoop                                      loop_;
+		std::vector<ListeningSocket*>                  listeners_;
+		SessionStore                                   sessions_;
+		Router&                                        router_;
 
-	Server(const Server&);
-	Server& operator=(const Server&);
+
+		Server(const Server&);
+		Server& operator=(const Server&);
 };
-
 
 #endif

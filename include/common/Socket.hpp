@@ -2,6 +2,7 @@
 # define WEBSERV_COMMON_SOCKET_HPP
 
 #include "common/FileDescriptor.hpp"
+#include "common/Logger.hpp"
 #include <iostream>
 #include <string>
 #include <fstream>
@@ -11,7 +12,6 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <cerrno>
-
 
 class Socket {
 public:

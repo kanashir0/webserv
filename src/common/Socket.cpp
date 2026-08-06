@@ -1,6 +1,5 @@
 #include "common/Socket.hpp"
 
-
 Socket::Socket() : fd_(-1) {}
 
 Socket::~Socket() {}
@@ -8,7 +7,7 @@ Socket::~Socket() {}
 void Socket::bindAndListen(const std::string& host, int port, int backlog) {
 	int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (socket_fd < 0) {
-		throw std::runtime_error("SOCKER FALHOU");
+		throw std::runtime_error(strerror(errno));
 	}
 	fd_.reset(socket_fd);
 
@@ -26,11 +25,11 @@ void Socket::bindAndListen(const std::string& host, int port, int backlog) {
 
 	socklen_t addrlen = sizeof(addr);
 	if (bind(fd(), (sockaddr *)&addr, addrlen) < 0) {
-		throw std::runtime_error("BIND FALHOU");
+		throw std::runtime_error(strerror(errno));
 	}
 
 	if (listen(fd(), backlog) < 0) {
-		throw std::runtime_error("LISTEN FALHOU");
+		throw std::runtime_error(strerror(errno));
 	}
 }
 
@@ -42,7 +41,8 @@ int Socket::acceptConnection() {
 	if (client_fd < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return -1;
-		throw std::runtime_error("ACCEPT FALHOU");
+		LOG_WARN("ACCEPT FAIL!");
+		return -1;
 	}
 
 	FileDescriptor accepted_fd(client_fd);
@@ -53,7 +53,7 @@ int Socket::acceptConnection() {
 
 void Socket::setNonBlocking(int server_fd) {
 	if (fcntl(server_fd, F_SETFL, O_NONBLOCK) < 0) {
-		throw std::runtime_error("FCNTL FALHOU");
+		throw std::runtime_error(strerror(errno));
 	}
 }
 

@@ -33,11 +33,7 @@ int   Client::fd() const         {
 short Client::interest() const   {
 	switch (state_) {
 		case READING_HEADERS:
-		case READING_BODY:
 			return POLLIN;
-
-		case ROUTING:
-			return 0;
 
 		case WRITING_RESPONSE:
 			return POLLOUT;
@@ -91,8 +87,6 @@ void  Client::onWritable()       {
 	ssize_t bytes_sent = send(fd_.get(), outBuffer_.c_str() + outOffset_, remaining, 0);
 
 	if (bytes_sent < 0) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
-			return;
 		wantsClose_ = true;
 		state_ = DONE;
 		return;
@@ -109,16 +103,18 @@ void  Client::onWritable()       {
 		return;
 	}
 
+	responseSerialized_ = false;
+
 	if (request_.keepAlive()) {
-		parser_.reset();
 		outBuffer_.clear();
 		outOffset_ = 0;
+		if (!tryConsumeResidual())
+			return;
 		state_ = READING_HEADERS;
 	} else {
 		wantsClose_ = true;
 		state_ = DONE;
 	}
-	responseSerialized_ = false;
 }
 
 void  Client::onHangup()         { wantsClose_ = true; }
@@ -128,12 +124,14 @@ Client::State Client::state() const          { return state_; }
 std::time_t   Client::lastActivity() const   { return lastActivity_; }
 
 const ServerConfig& Client::matchVirtualHost() const {
-	std::string host = request_.header("Host");
+	std::string hostPort = request_.header("Host");
+
+	std::string host = hostPort.substr(0, hostPort.find(":"));
 
 	for (size_t i = 0; i < vhosts_.size(); i++) {
 		StringVec serverName = vhosts_[i].getServerNames();
 		for (size_t j = 0; j < serverName.size(); j++) {
-			if (host == serverName[j])
+			if (StringUtils::iequals(host, serverName[j]))
 				return vhosts_[i];
 		}
 	}
@@ -151,6 +149,17 @@ void Client::checkTimeout(std::time_t now, std::time_t timeout) {
 	buildErrorResponse(408);
 	closeAfterWrite_ = true;
 	state_ = WRITING_RESPONSE;
+}
+
+bool Client::tryConsumeResidual() {
+	RequestParser::FeedResult result = parser_.feed(nullptr, 0, matchVirtualHost().clientMaxBodySize);
+	if (result == RequestParser::COMPLETE) {
+		request_ = parser_.take();
+		response_ = router_.route(request_, matchVirtualHost());
+		state_ = WRITING_RESPONSE;
+		return false;
+	}
+	return true;
 }
 
 
