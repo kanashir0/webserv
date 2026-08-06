@@ -42,6 +42,7 @@ int Socket::acceptConnection() {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return -1;
 		LOG_WARN("ACCEPT FAIL!");
+		return -1;
 	}
 
 	FileDescriptor accepted_fd(client_fd);

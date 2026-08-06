@@ -87,8 +87,6 @@ void  Client::onWritable()       {
 	ssize_t bytes_sent = send(fd_.get(), outBuffer_.c_str() + outOffset_, remaining, 0);
 
 	if (bytes_sent < 0) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
-			return;
 		wantsClose_ = true;
 		state_ = DONE;
 		return;
@@ -105,15 +103,18 @@ void  Client::onWritable()       {
 		return;
 	}
 
+	responseSerialized_ = false;
+
 	if (request_.keepAlive()) {
 		outBuffer_.clear();
 		outOffset_ = 0;
+		if (!tryConsumeResidual())
+			return;
 		state_ = READING_HEADERS;
 	} else {
 		wantsClose_ = true;
 		state_ = DONE;
 	}
-	responseSerialized_ = false;
 }
 
 void  Client::onHangup()         { wantsClose_ = true; }
@@ -148,6 +149,17 @@ void Client::checkTimeout(std::time_t now, std::time_t timeout) {
 	buildErrorResponse(408);
 	closeAfterWrite_ = true;
 	state_ = WRITING_RESPONSE;
+}
+
+bool Client::tryConsumeResidual() {
+	RequestParser::FeedResult result = parser_.feed(nullptr, 0, matchVirtualHost().clientMaxBodySize);
+	if (result == RequestParser::COMPLETE) {
+		request_ = parser_.take();
+		response_ = router_.route(request_, matchVirtualHost());
+		state_ = WRITING_RESPONSE;
+		return false;
+	}
+	return true;
 }
 
 

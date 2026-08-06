@@ -49,7 +49,7 @@ void EventLoop::runOnce(int timeoutMs) {
 	time_t now = std::time(NULL);
 	for (std::vector<IPollable*>::iterator it = pollables_.begin();
 		 it != pollables_.end(); it++) {
-		(*it)->checkTimeout(now, timeoutMs);
+		(*it)->checkTimeout(now, 60);
 	}
 
 	for (std::size_t i = 0; i < fds.size(); i++) {
@@ -68,7 +68,7 @@ void EventLoop::runOnce(int timeoutMs) {
 void EventLoop::run() {
 	running_ = true;
 	while (running_) {
-		runOnce(60);
+		runOnce(1000);
 		reapClosed();
 
 		if (tickHandler_)

@@ -77,17 +77,18 @@ void Server::start() {
 
 	for (std::map<Endpoint, std::vector<ServerConfig> >::iterator it = groups_.begin();
          it != groups_.end(); it++) {
-		try {
-			ListeningSocket* listener = new ListeningSocket(it->first.first, it->first.second, it->second, router_, sessions_, loop_);
-			std::ostringstream oss;
-			oss << "SOCKET OUVINDO NA PORT: " << it->first.second;
-			LOG_INFO(oss.str());
 
-			listeners_.push_back(listener);
+		ListeningSocket* listener = new ListeningSocket(it->first.first, it->first.second, it->second, router_, sessions_, loop_);
+		if (!listener)
+			throw std::runtime_error("SOCKER FAIL");
 
-			loop_.add(listener);
-		}
-		catch (const std::exception& e) {}
+		std::ostringstream oss;
+		oss << "SOCKET OUVINDO NA PORT: " << it->first.second;
+		LOG_INFO(oss.str());
+
+		listeners_.push_back(listener);
+
+		loop_.add(listener);
 	}
 	loop_.setTickHandler(&sessions_);
 	loop_.run();
