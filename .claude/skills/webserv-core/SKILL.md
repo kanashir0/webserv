@@ -14,7 +14,10 @@ recv/send e o ciclo de vida das conexões.
 2. **Nunca `recv`/`send`/`accept` sem o `poll()` ter retornado o evento.**
    Use sempre os callbacks `onReadable()`/`onWritable()`/`onHangup()`.
 3. **`O_NONBLOCK` em todo socket** (listening e accept), aplicado via
-   `fcntl(fd, F_SETFL, O_NONBLOCK)` no momento da criação.
+   `fcntl(fd, F_SETFL, O_NONBLOCK)` no momento da criação. O subject só
+   permite as flags `F_SETFL`, `O_NONBLOCK` e `FD_CLOEXEC` — **nunca**
+   escreva `fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)`, pois
+   `F_GETFL` é proibido.
 4. **RAII via `FileDescriptor`.** Nunca chamar `close()` direto. Para
    transferir ownership use `release()`.
 5. **Single-thread.** Nada de `pthread`, `std::thread`, `std::async`.
@@ -52,7 +55,10 @@ READING_HEADERS → READING_BODY → ROUTING → WRITING_RESPONSE → DONE
 - Em `DONE`, marca `wantsClose_ = true`. O reaper do loop deleta na próxima
   iteração.
 - `recv()` retornando 0 → cliente fechou: `onHangup()` → marca close.
-- `recv()`/`send()` retornando -1: **NÃO** cheque `errno` (`EAGAIN`/`EWOULDBLOCK`)
+- `recv()`/`send()` retornando -1: **NÃO** cheque `errno` (`EAGAIN`/`EWOULDBLOCK`) —
+  é proibido pelo subject. Trate `-1` como fim da conexão: `wantsClose_ = true`,
+  `state_ = DONE`. O mesmo vale, por precaução, para `accept()`. `strerror(errno)`
+  continua permitido em `socket`/`bind`/`listen`/`fcntl`, que não são I/O
   — o subject proíbe. Apenas trate como "tente de novo no próximo poll".
 
 ## Envio parcial (importantíssimo)

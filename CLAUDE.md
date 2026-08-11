@@ -36,8 +36,10 @@ Nunca suprimir warnings. Parâmetros de funções stub são comentados (`/* para
 |-----------|---------------|
 | **`poll()` chamado apenas em um ponto** | Somente em `EventLoop::runOnce()` |
 | **Nunca `read()`/`write()` sem `poll()` indicar** | Apenas dentro de `onReadable()`/`onWritable()` |
+| **Proibido checar `errno` após `read`/`recv`/`write`/`send`** | `recv`/`send` retornando `-1` fecham a conexão — **nunca** testar `EAGAIN`/`EWOULDBLOCK`. `strerror(errno)` segue permitido em `socket`/`bind`/`listen`/`fcntl` |
 | **`fork()` somente para CGI** | Somente em `CgiHandler::start()` |
 | **Sem threads** | Todo o projeto é single-thread |
+| **`fcntl()` só com `F_SETFL`, `O_NONBLOCK`, `FD_CLOEXEC`** | `Socket::setNonBlocking()` e pipes do CGI — **`F_GETFL` é proibido**, use `fcntl(fd, F_SETFL, O_NONBLOCK)` direto |
 | **C++98 strict** | Sem `nullptr`, sem `auto`, sem range-for, sem `std::to_string`, sem smart pointers |
 
 ## Arquitetura

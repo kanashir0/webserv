@@ -82,7 +82,7 @@ seção "Bugs e ajustes abertos" do épico correspondente.
 | 🔴 Alta | BUG-07-01 | Dois `SessionStore`; o `gc()` roda no vazio | [07](epic-07-bonus-sessoes.md) |
 | 🔴 Alta | BUG-07-02 | `generateId` previsível — session fixation | [07](epic-07-bonus-sessoes.md) |
 | 🟡 Média | BUG-01-07 | `~EventLoop` vaza os `IPollable*` no shutdown | [01](epic-01-motor-de-rede.md) |
-| 🟡 Média | BUG-01-08 | Estados mortos no `Client`; `recv` ignora `errno` | [01](epic-01-motor-de-rede.md) |
+| 🟡 Média | BUG-01-08 | Estados mortos no `Client` (✅ PR #34); `recv() < 0` não fecha a conexão — fechar **sem** consultar `errno`, que é proibido pelo subject | [01](epic-01-motor-de-rede.md) |
 | 🟡 Média | BUG-01-09 | Keep-alive descarta requests em pipelining | [01](epic-01-motor-de-rede.md) |
 | 🟡 Média | BUG-05-02 | `www/uploads` não versionado → todo upload dá 500 | [05](epic-05-handlers-http.md) |
 | 🟢 Baixa | BUG-01-01 | `setNonBlocking` apaga as flags do FD | [01](epic-01-motor-de-rede.md) |

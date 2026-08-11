@@ -5,7 +5,7 @@
 > **Valor entregue:** servidor capaz de aceitar conexões TCP, gerenciar múltiplos clientes simultâneos via `poll()` único e mover dados entre socket ↔ parser ↔ resposta sem nunca bloquear o processo.
 > **Critério de "épico pronto":** `./webserv conf/default.conf` aceita conexões, mantém múltiplos clientes em paralelo e responde com mocks/handlers sem travar (`siege -c10 -t10s` sem queda).
 
-> **Status do épico (auditoria de 02/08/2026):** 🟡 **5 ✅ / 8 ⚠️ / 0 ❌** — todas as tarefas
+> **Status do épico (auditoria de 02/08/2026, revisto em 11/08/2026):** 🟡 **6 ✅ / 7 ⚠️ / 0 ❌** — todas as tarefas
 > foram implementadas e o servidor sobe e responde, mas 8 delas têm defeitos que não cumprem
 > os próprios critérios de aceite. Ver [Bugs e ajustes abertos](#bugs-e-ajustes-abertos).
 > Legenda: ✅ feita e correta · ⚠️ feita, precisa reabrir · ❌ não iniciada.
@@ -29,18 +29,18 @@
 
 ---
 
-## ⚠️ E01-T02 — Implementar `Socket::setNonBlocking`
+## ✅ E01-T02 — Implementar `Socket::setNonBlocking`
 
 - **Owner:** M1
-- **Status:** ⚠️ REABRIR — ver [BUG-01-01](#bug-01-01--setnonblocking-descarta-as-flags-existentes-do-fd)
+- **Status:** ✅ CONCLUÍDA — BUG-01-01 foi invalidado, ver [BUG-01-01](#bug-01-01--invalidado--setnonblocking-está-correto)
 - **Tamanho:** S
 - **Arquivos afetados:** `src/common/Socket.cpp`
 - **Dependências:** E01-T01
-- **Descrição:** aplicar `fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)` para que `recv/send/accept` retornem imediatamente com `EAGAIN/EWOULDBLOCK` em vez de bloquear.
+- **Descrição:** aplicar `fcntl(fd, F_SETFL, O_NONBLOCK)` para que `recv/send/accept` retornem imediatamente com `EAGAIN/EWOULDBLOCK` em vez de bloquear. **O subject permite apenas as flags `F_SETFL`, `O_NONBLOCK` e `FD_CLOEXEC`** — a forma idiomática com `F_GETFL` é proibida.
 - **Critérios de aceite:**
-  - [ ] Recebe `int fd` e aplica `O_NONBLOCK` **preservando outras flags**. ← hoje faz `fcntl(fd, F_SETFL, O_NONBLOCK)` sem ler `F_GETFL`, apagando as demais
-  - [x] Falha em `fcntl` lança `std::runtime_error`. ← sem `errno` na mensagem
-  - [x] Após chamada, `recv` em socket vazio retorna -1 com `errno == EAGAIN`.
+  - [x] Recebe `int fd` e aplica `O_NONBLOCK` via `fcntl(fd, F_SETFL, O_NONBLOCK)`, **sem `F_GETFL`**.
+  - [x] Falha em `fcntl` lança `std::runtime_error` com `strerror(errno)`. ← corrigido no PR #34
+  - [x] Após chamada, `recv` em socket vazio retorna -1 imediatamente em vez de bloquear. (O `errno` fica `EAGAIN`, mas o código **não pode** consultá-lo — ver E01-T09.)
 
 ---
 
@@ -51,11 +51,17 @@
 - **Tamanho:** S
 - **Arquivos afetados:** `src/common/Socket.cpp`
 - **Dependências:** E01-T01
-- **Descrição:** chamar `::accept(fd, &addr, &len)` e retornar o FD do cliente. Em `EAGAIN/EWOULDBLOCK`, retornar `-1` sem lançar exceção (é fluxo normal quando todas as conexões já foram drenadas).
+- **Descrição:** chamar `::accept(fd, &addr, &len)` e retornar o FD do cliente. Em erro, retornar `-1` sem lançar exceção (fila drenada é fluxo normal). O chamador para de aceitar nesta iteração em qualquer `-1`.
+
+> **Nota sobre `errno` (11/08/2026):** o subject proíbe consultar `errno` após
+> `read`/`recv`/`write`/`send`. Para `accept()` a proibição não é explícita, mas a
+> recomendação do projeto é não olhar `errno` aqui também — o comportamento é idêntico
+> (sair do loop de accept) e evita discussão na defesa. Ver
+> [BUG-01-08](#bug-01-08--client-nunca-usa-o-estado-reading_body-recv--0-não-fecha-a-conexão).
 - **Critérios de aceite:**
   - [ ] Preenche `outAddr` com IP/porta do cliente. ← `sockaddr_in` é local e descartado; o IP do cliente não chega a lugar nenhum (necessário para `REMOTE_ADDR` em E06-T01)
-  - [x] Retorna `-1` em `EAGAIN/EWOULDBLOCK` sem logar erro.
-  - [ ] Retorna `-1` e loga `WARN` em outros erros. ← hoje lança `std::runtime_error`, que derruba o servidor
+  - [x] Retorna `-1` em qualquer erro, **sem lançar exceção** e sem consultar `errno`. ← corrigido no PR #34
+  - [x] Loga `WARN` (uma vez só, aqui e não no chamador) ao retornar `-1`. ← corrigido no PR #34; falta incluir `strerror(errno)` na mensagem
   - [x] FD retornado **não** é gerenciado pelo `Socket` (ownership transferido ao chamador via `release()`).
 
 ---
@@ -123,7 +129,7 @@
 - **Descrição:** construtor chama `socket_.bindAndListen(host, port)` e `setNonBlocking()`. `onReadable()` chama `accept()` em **loop** (até retornar -1) para drenar todas as conexões pendentes; para cada FD aceito, cria um `Client` e chama `loop_.add(client)`.
 - **Critérios de aceite:**
   - [x] `interest()` retorna sempre `POLLIN`.
-  - [x] `onReadable()` aceita múltiplas conexões na mesma iteração (loop até `EAGAIN`).
+  - [x] `onReadable()` aceita múltiplas conexões na mesma iteração (loop até o primeiro `-1`, sem consultar `errno`).
   - [x] Cada `Client` criado é registrado no `EventLoop` via `loop_.add()`.
   - [x] `wantsClose()` retorna sempre `false`.
   - [x] FD do cliente é colocado em modo não-bloqueante antes de criar o `Client` (dentro de `Socket::acceptConnection`).
@@ -154,14 +160,14 @@
 - **Tamanho:** L
 - **Arquivos afetados:** `src/core/Client.cpp`, `include/core/Client.hpp`
 - **Dependências:** E01-T04, E03-T01
-- **Descrição:** chamar `recv(fd, buf, sizeof(buf))`; se retorna 0 → `wantsClose_ = true`; se retorna `-1` com `EAGAIN` → aguarda próximo `POLLIN`; se retorna `>0` → `parser_.feed(buf, n, vhost.clientMaxBodySize)`. Tratar `FeedResult::COMPLETE` (transitar para `ROUTING` → `WRITING_RESPONSE`), `NEED_MORE` (continuar) e erros (`buildErrorResponse(parser_.errorStatus())`).
+- **Descrição:** chamar `recv(fd, buf, sizeof(buf))`; se retorna 0 → `wantsClose_ = true`; se retorna `-1` → `wantsClose_ = true`, `state_ = DONE` (**sem checar `errno`** — proibido pelo subject); se retorna `>0` → `parser_.feed(buf, n, vhost.clientMaxBodySize)`. Tratar `FeedResult::COMPLETE` (transitar para `WRITING_RESPONSE`), `NEED_MORE` (continuar) e erros (`buildErrorResponse(parser_.errorStatus())`).
 - **Critérios de aceite:**
   - [ ] Estados `READING_HEADERS → READING_BODY → ROUTING → WRITING_RESPONSE → DONE` transitam corretamente. ← `READING_BODY` e `ROUTING` **nunca são atribuídos**; o `Client` salta de `READING_HEADERS` para `WRITING_RESPONSE`
   - [x] `interest()` retorna `POLLIN` em `READING_*`, `POLLOUT` em `WRITING_RESPONSE`, `0` em `DONE`.
   - [x] `lastActivity_` é atualizado a cada `recv()` bem-sucedido.
   - [x] Cliente que envia request inválido recebe `400` e fecha após enviar. ← verificado (`GET / HTTP/1.1` sem `Host` → 400)
   - [x] Recv parcial funciona — request é montado ao longo de múltiplos `onReadable()`.
-  - [ ] `recv() < 0` distingue `EAGAIN` de erro real. ← hoje faz `return` cego sem olhar `errno`; erro real mantém a conexão presa até o timeout
+  - [ ] `recv() < 0` fecha a conexão (`wantsClose_ = true`, `state_ = DONE`), **sem consultar `errno`**. ← hoje faz `return` cego e a conexão fica presa até o timeout
 
 > **Decisão pendente:** ou se implementa a transição real para `READING_BODY`/`ROUTING`, ou
 > se removem os dois estados do enum — quem tem a máquina de estados de verdade é o
@@ -181,7 +187,7 @@
   - [x] Envio parcial é tratado — próximo `onWritable` continua de onde parou.
   - [x] Conexão keep-alive permite múltiplas requisições no mesmo socket. ← verificado com 2 requests na mesma conexão
   - [x] `Connection: close` fecha a conexão após enviar resposta.
-  - [x] `EAGAIN` em `send` não derruba o cliente.
+  - [x] `send() < 0` fecha a conexão, **sem consultar `errno`**. ← redação corrigida em 11/08/2026: antes dizia "`EAGAIN` em `send` não derruba o cliente", o que exigiria checar `errno` (proibido pelo subject). O PR #34 removeu o check corretamente.
   - [x] HTTP/1.0 fecha por padrão; HTTP/1.1 mantém keep-alive por padrão.
 
 ---
@@ -239,7 +245,7 @@
 | ID | Tarefa | Status | Tamanho | Dependências |
 |----|--------|--------|---------|-------------|
 | E01-T01 | Socket::bindAndListen | ✅ | S | — |
-| E01-T02 | Socket::setNonBlocking | ⚠️ BUG-01-01 | S | T01 |
+| E01-T02 | Socket::setNonBlocking | ✅ (BUG-01-01 invalidado) | S | T01 |
 | E01-T03 | Socket::accept | ⚠️ BUG-01-02 | S | T01 |
 | E01-T04 | EventLoop::runOnce | ✅ | L | T01, T02 |
 | E01-T05 | EventLoop::reapClosed | ✅ | S | T04 |
@@ -261,15 +267,24 @@
 > **Fase A** da ordem de ataque em [`PLANNING.md`](PLANNING.md) é fechar estes bugs antes de
 > começar o CGI.
 
-### BUG-01-01 — `setNonBlocking` descarta as flags existentes do FD
+### BUG-01-01 — ❌ INVALIDADO — `setNonBlocking` está correto
 
 - **Origem:** E01-T02
-- **Onde:** `src/common/Socket.cpp:54`
-- **Sintoma:** `fcntl(server_fd, F_SETFL, O_NONBLOCK)` sobrescreve o conjunto inteiro de
-  flags do descritor em vez de acrescentar `O_NONBLOCK` ao que já existia.
-- **Esperado:** `fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)`.
-- **Severidade:** Baixa — inofensivo para sockets recém-criados, que não têm outras flags.
-  Vira problema real assim que os pipes do CGI (E06-T03) passarem por aqui.
+- **Onde:** `src/common/Socket.cpp:55`
+- **Status:** **fechado como "não é bug"** em 11/08/2026. O código atual está certo e não
+  deve ser alterado.
+- **Por quê:** o subject restringe explicitamente o uso de `fcntl()` às flags **`F_SETFL`,
+  `O_NONBLOCK` e `FD_CLOEXEC`** — "qualquer outra flag é proibida". `F_GETFL` está fora
+  dessa lista. A correção que este bug pedia
+  (`fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)`) **introduziria uma violação do
+  subject**, flagável na defesa.
+- **O receio técnico também não procede:** `F_SETFL` só altera `O_APPEND`, `O_ASYNC`,
+  `O_DIRECT`, `O_NOATIME` e `O_NONBLOCK`; os bits de modo de acesso (`O_RDONLY`/`O_WRONLY`)
+  são **ignorados** por ele, não apagados. Um FD recém-saído de `socket()` ou `pipe()` não
+  tem nenhuma dessas cinco flags setada, logo não há nada a preservar — nem hoje, nem quando
+  os pipes do CGI (E06-T03) passarem por aqui.
+- **Lição:** a restrição não estava documentada em `README.md`, `CLAUDE.md` nem nas skills,
+  e foi essa ausência que produziu o bug fantasma. Agora está registrada nos quatro lugares.
 
 ### BUG-01-02 — `Socket::acceptConnection` lança exceção em erro não-EAGAIN
 
@@ -298,11 +313,14 @@
 
   Qualquer retorno negativo que não seja `EAGAIN` cai no `new Client(-1, ...)` e o `while
   (true)` nunca termina.
-- **Esperado:** `break` (ou `continue`) em **todo** retorno negativo; só criar `Client` com
-  FD válido.
+- **Esperado:** `break` em **todo** retorno negativo; só criar `Client` com FD válido. Como
+  o comportamento é o mesmo para `EAGAIN` e para erro real, o `if (errno == EAGAIN)` pode
+  (e deve) sumir por completo — ver a nota sobre `errno` em [E01-T03](#-e01-t03--implementar-socketaccept).
 - **Severidade:** **Alta** — hoje está mascarado por BUG-01-02 (o accept lança antes de
   retornar -1). Corrigir BUG-01-02 sem corrigir este transforma uma queda em um loop
   infinito, que é pior.
+- **Status:** ✅ resolvido no PR #34 (o `break` cobre todo `-1`), mas o `if (errno == EAGAIN)`
+  sobreviveu e o log ficou duplicado com o do `Socket::acceptConnection`.
 
 ### BUG-01-04 — `Server::start` agrupa vhosts errado e sempre tenta um bind redundante
 
@@ -363,19 +381,30 @@
   documentar.
 - **Severidade:** Média — bloqueia o critério "0 FDs vazados" de E08-T03.
 
-### BUG-01-08 — `Client` nunca usa o estado `READING_BODY` e ignora `errno` no `recv`
+### BUG-01-08 — `Client` nunca usa o estado `READING_BODY`; `recv() < 0` não fecha a conexão
 
 - **Origem:** E01-T09
 - **Onde:** `src/core/Client.cpp:50-78`
 - **Sintoma:** dois defeitos:
-  1. O enum `Client::State` declara `READING_BODY` e `ROUTING`, mas nenhum dos dois é
-     atribuído em lugar nenhum — o `Client` vai direto de `READING_HEADERS` para
-     `WRITING_RESPONSE`. Estado morto confunde quem lê e quebra o critério de aceite.
-  2. `if (ret < 0) return;` não distingue `EAGAIN` de erro real; um `ECONNRESET` deixa a
-     conexão presa até o timeout (que, por BUG-01-06, é de 16 min).
-- **Esperado:** remover os estados mortos do enum (recomendado — o `RequestParser` já tem a
-  máquina de estados real) ou implementar as transições; e fechar a conexão quando `errno`
-  não for `EAGAIN/EWOULDBLOCK`.
+  1. ✅ **RESOLVIDO no PR #34.** O enum `Client::State` declarava `READING_BODY` e `ROUTING`
+     sem nunca atribuí-los. Ambos foram removidos.
+  2. ⚠️ **ABERTO.** `if (ret < 0) return;` não faz nada: um `ECONNRESET` deixa a conexão
+     presa até o timeout.
+- **Esperado:** fechar a conexão em **qualquer** retorno negativo:
+
+  ```cpp
+  if (ret < 0) {
+      wantsClose_ = true;
+      state_ = DONE;
+      return;
+  }
+  ```
+
+- **⚠️ Correção da redação original (11/08/2026):** este bug pedia para "fechar a conexão
+  quando `errno` não for `EAGAIN/EWOULDBLOCK`". **Isso estava errado e violaria o subject**,
+  que proíbe consultar `errno` após `read`/`recv`/`write`/`send`. Não há como distinguir
+  `EAGAIN` de erro real, e não se deve tentar — `-1` fecha, ponto. O mesmo vale para o
+  `send()` em `onWritable`, cujo check de `EAGAIN` o PR #34 removeu corretamente.
 - **Severidade:** Média.
 
 ### BUG-01-09 — Keep-alive descarta requests em pipelining
