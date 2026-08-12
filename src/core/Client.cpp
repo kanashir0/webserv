@@ -50,13 +50,11 @@ void  Client::onReadable()       {
 
 	ssize_t ret = recv(fd_.get(), buffer, sizeof(buffer), 0);
 
-	if (ret == 0) {
+	if (ret <= 0) {
 		wantsClose_ = true;
 		state_ = DONE;
 		return;
 	}
-	if (ret < 0)
-		return;
 
 	RequestParser::FeedResult result = parser_.feed(buffer, ret, matchVirtualHost().clientMaxBodySize);
 
@@ -152,14 +150,20 @@ void Client::checkTimeout(std::time_t now, std::time_t timeout) {
 }
 
 bool Client::tryConsumeResidual() {
-	RequestParser::FeedResult result = parser_.feed(nullptr, 0, matchVirtualHost().clientMaxBodySize);
-	if (result == RequestParser::COMPLETE) {
+	RequestParser::FeedResult result = parser_.feed(NULL, 0, matchVirtualHost().clientMaxBodySize);
+	if (result == RequestParser::NEED_MORE)
+		return true;
+	else if (result == RequestParser::COMPLETE) {
 		request_ = parser_.take();
 		response_ = router_.route(request_, matchVirtualHost());
 		state_ = WRITING_RESPONSE;
 		return false;
 	}
-	return true;
+
+	buildErrorResponse(parser_.errorStatus());
+	closeAfterWrite_ = true;
+	state_ = WRITING_RESPONSE;
+	return false;
 }
 
 

@@ -32,12 +32,8 @@ void  ListeningSocket::onReadable() {
 	while (true) {
 		int client_fd = socket_.acceptConnection();
 
-		if (client_fd < 0) {
-			if (errno == EAGAIN)
-				break;
-			LOG_ERROR("ACCEPT CLIENT FAIL");
+		if (client_fd < 0)
 			break;
-		}
 
 		Client* client = new Client(
 			client_fd,
@@ -59,16 +55,17 @@ bool  ListeningSocket::wantsClose() const    {
 
 Server::Server(const std::vector<ServerConfig>& configs,  Router& router)
 	: configs_(configs)
-	, groups_()
-	, loop_()
 	, listeners_()
 	, sessions_()
 	, router_(router)
+	, loop_()
 {}
 
 Server::~Server() {}
 
 void Server::start() {
+	std::map<Endpoint, std::vector<ServerConfig> > groups_;
+
 	for (size_t i = 0; i < configs_.size(); i++) {
 		Endpoint key(configs_[i].host, configs_[i].port);
 
@@ -79,8 +76,6 @@ void Server::start() {
          it != groups_.end(); it++) {
 
 		ListeningSocket* listener = new ListeningSocket(it->first.first, it->first.second, it->second, router_, sessions_, loop_);
-		if (!listener)
-			throw std::runtime_error("SOCKER FAIL");
 
 		std::ostringstream oss;
 		oss << "SOCKET OUVINDO NA PORT: " << it->first.second;
@@ -109,16 +104,4 @@ SessionStore& Server::sessions() {
 void        ListeningSocket::checkTimeout(time_t now, time_t timeout) {
 	(void)now;
 	(void)timeout;
-}
-
-void        ListeningSocket::addServer(ServerConfig& config) {
-	vhosts_.push_back(config);
-}
-
-std::string ListeningSocket::getHost() {
-	return host_;
-}
-
-int ListeningSocket::getPort() {
-	return port_;
 }

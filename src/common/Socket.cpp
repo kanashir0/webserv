@@ -41,7 +41,7 @@ int Socket::acceptConnection() {
 	if (client_fd < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return -1;
-		LOG_WARN("ACCEPT FAIL!");
+		LOG_WARN(strerror(errno));
 		return -1;
 	}
 

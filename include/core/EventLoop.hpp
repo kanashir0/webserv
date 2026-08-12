@@ -26,7 +26,7 @@ public:
 
 	void setTickHandler(ITickable* handler);
 
-	void runOnce(int timeoutMs);
+	void runOnce(int timeoutMs, int timeoutSec);
 	void run();
 	void stop();
 
