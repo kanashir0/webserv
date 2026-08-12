@@ -32,10 +32,8 @@ void  ListeningSocket::onReadable() {
 	while (true) {
 		int client_fd = socket_.acceptConnection();
 
-		if (client_fd < 0) {
-			if (errno == EAGAIN)
-				break;
-		}
+		if (client_fd < 0)
+			break;
 
 		Client* client = new Client(
 			client_fd,
@@ -55,47 +53,37 @@ bool  ListeningSocket::wantsClose() const    {
 	return false;
 }
 
-Server::Server(const std::vector<ServerConfig>& configs, Router& router)
+Server::Server(const std::vector<ServerConfig>& configs,  Router& router)
 	: configs_(configs)
-	, loop_()
 	, listeners_()
 	, sessions_()
 	, router_(router)
+	, loop_()
 {}
 
-Server::~Server() {
-	for (std::vector<ListeningSocket*>::iterator it = listeners_.begin();
-	     it != listeners_.end(); ++it) {
-		delete *it;
-	}
-}
+Server::~Server() {}
 
 void Server::start() {
+	std::map<Endpoint, std::vector<ServerConfig> > groups_;
+
 	for (size_t i = 0; i < configs_.size(); i++) {
-		for (size_t j = 0; j < listeners_.size(); j++) {
-			if (configs_[i].host == listeners_[j]->getHost() && configs_[i].port == listeners_[j]->getPort())
-				listeners_[j]->addServer(configs_[i]);
-			else {
-				break ;
-			}
-		}
+		Endpoint key(configs_[i].host, configs_[i].port);
 
-		try {
-			std::vector<ServerConfig> vhost;
-			vhost.push_back(configs_[i]);
+		groups_[key].push_back(configs_[i]);
+	}
 
-			ListeningSocket* listener = new ListeningSocket(configs_[i].host, configs_[i].port, vhost, router_, sessions_, loop_);
-			std::ostringstream oss;
-			oss << "SOCKET OUVINDO NA PORT: " << configs_[i].port;
-			LOG_WARN(oss.str());
+	for (std::map<Endpoint, std::vector<ServerConfig> >::iterator it = groups_.begin();
+         it != groups_.end(); it++) {
 
-			listeners_.push_back(listener);
+		ListeningSocket* listener = new ListeningSocket(it->first.first, it->first.second, it->second, router_, sessions_, loop_);
 
-			loop_.add(listener);
-		}
-		catch (const std::exception& e) {
-			std::cout << "FALHA EM BINDAR LISTENEN (SERVIDOR)" << e.what() << std::endl;
-		}
+		std::ostringstream oss;
+		oss << "SOCKET OUVINDO NA PORT: " << it->first.second;
+		LOG_INFO(oss.str());
+
+		listeners_.push_back(listener);
+
+		loop_.add(listener);
 	}
 	loop_.setTickHandler(&sessions_);
 	loop_.run();
@@ -116,16 +104,4 @@ SessionStore& Server::sessions() {
 void        ListeningSocket::checkTimeout(time_t now, time_t timeout) {
 	(void)now;
 	(void)timeout;
-}
-
-void        ListeningSocket::addServer(ServerConfig& config) {
-	vhosts_.push_back(config);
-}
-
-std::string ListeningSocket::getHost() {
-	return host_;
-}
-
-int ListeningSocket::getPort() {
-	return port_;
 }

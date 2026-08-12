@@ -1,6 +1,6 @@
 ---
 name: webserv-rules
-description: Audita o código contra as 5 restrições críticas do subject webserv da 42 (poll único, sem read/write fora de poll, fork só para CGI, single-thread, C++98 strict). Use sempre antes de abrir PR ou após adicionar I/O novo.
+description: Audita o código contra as restrições críticas do subject webserv da 42 (poll único, sem read/write fora de poll, fork só para CGI, single-thread, C++98 strict, sem errno após I/O, fcntl só com F_SETFL/O_NONBLOCK/FD_CLOEXEC). Use sempre antes de abrir PR ou após adicionar I/O novo.
 ---
 
 # webserv-rules — auditoria das restrições do subject
@@ -100,6 +100,44 @@ grep -rn '\bclose\s*(' src/ | grep -v 'FileDescriptor.cpp'
 ```
 
 Esperado: zero (ou apenas dentro do destrutor da própria classe).
+
+### 8. `errno` após `read`/`recv`/`write`/`send` — proibido
+
+O subject proíbe consultar `errno` depois de uma operação de I/O. Não há
+exceção para `EAGAIN`/`EWOULDBLOCK`.
+
+```bash
+grep -rn 'errno' src/ include/
+```
+
+Para cada hit, identifique a syscall imediatamente anterior:
+
+- **Violação:** `recv`, `send`, `read`, `write`. O `-1` deve fechar a conexão
+  (`wantsClose_ = true`, `state_ = DONE`), sem inspecionar `errno`.
+- **Tolerado mas desaconselhado:** `accept`. A proibição não é explícita no
+  subject, mas o comportamento é o mesmo com ou sem o teste (sair do loop de
+  accept), então o teste é custo puro e risco na defesa.
+- **Permitido:** `socket`, `bind`, `listen`, `fcntl`, `stat`, `open`. Não são
+  I/O de stream; `strerror(errno)` na mensagem de erro é inclusive exigido
+  por E01-T01.
+
+### 9. `fcntl()` apenas com `F_SETFL`, `O_NONBLOCK`, `FD_CLOEXEC`
+
+Qualquer outra flag é proibida pelo subject — em especial `F_GETFL`, que
+torna a forma idiomática `fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)`
+inutilizável neste projeto.
+
+```bash
+grep -rn 'fcntl' src/ include/
+```
+
+**Esperado:** só `fcntl(fd, F_SETFL, O_NONBLOCK)` e, se usado,
+`fcntl(fd, F_SETFD, FD_CLOEXEC)`. Zero hits de `F_GETFL`, `F_GETFD`,
+`F_SETLK`, `F_DUPFD` etc.
+
+Não há perda em não preservar flags: `F_SETFL` só altera `O_APPEND`,
+`O_ASYNC`, `O_DIRECT`, `O_NOATIME` e `O_NONBLOCK`, e um FD recém-criado por
+`socket()` ou `pipe()` não tem nenhuma delas setada.
 
 ## Saída esperada
 

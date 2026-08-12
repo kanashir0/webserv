@@ -1,7 +1,12 @@
 #include "core/EventLoop.hpp"
 
 EventLoop::EventLoop() : pollables_(), tickHandler_(0), running_(false) {}
-EventLoop::~EventLoop() {}
+EventLoop::~EventLoop() {
+	for (std::vector<IPollable*>::iterator it = pollables_.begin();
+	     it != pollables_.end(); ++it) {
+		delete *it;
+	}
+}
 
 void EventLoop::setTickHandler(ITickable* handler) { tickHandler_ = handler; }
 
@@ -16,7 +21,7 @@ void EventLoop::remove(IPollable* pollable) {
 	}
 }
 
-void EventLoop::runOnce(int timeoutMs) {
+void EventLoop::runOnce(int timeoutMs, int timeoutSec) {
 	std::vector<pollfd> fds;
 	fds.reserve(pollables_.size());
 
@@ -44,7 +49,7 @@ void EventLoop::runOnce(int timeoutMs) {
 	time_t now = std::time(NULL);
 	for (std::vector<IPollable*>::iterator it = pollables_.begin();
 		 it != pollables_.end(); it++) {
-		(*it)->checkTimeout(now, timeoutMs);
+		(*it)->checkTimeout(now, timeoutSec);
 	}
 
 	for (std::size_t i = 0; i < fds.size(); i++) {
@@ -63,7 +68,7 @@ void EventLoop::runOnce(int timeoutMs) {
 void EventLoop::run() {
 	running_ = true;
 	while (running_) {
-		runOnce(1000);
+		runOnce(1000, 60);
 		reapClosed();
 
 		if (tickHandler_)

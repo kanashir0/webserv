@@ -99,7 +99,7 @@
   - [ ] Body grande (1 MB) é entregue em múltiplos `onWritable()` sem bloquear.
   - [ ] Output grande do script é acumulado em múltiplos `onReadable()`.
   - [ ] Após `done_ = true`, o handler sinaliza conclusão ao `Client` (ver E06-T07) e só então `wantsClose_ = true`.
-  - [ ] `EAGAIN` em qualquer pipe é tratado (apenas aguarda o próximo poll).
+  - [ ] `read`/`write` em qualquer pipe retornando `-1` encerra o handler (`done_ = true`), **sem consultar `errno`** — o subject proíbe checar `errno` após I/O, então não há como distinguir `EAGAIN` de erro real.
   - [ ] `interest()` devolve `POLLOUT` enquanto há body a enviar e `POLLIN` depois — hoje devolve `0` fixo (stub).
   - [ ] `checkTimeout` implementado (é puro-virtual em `IPollable`; sem ele a classe nem compila).
 

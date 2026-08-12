@@ -3,6 +3,7 @@
 
 #include "core/IPollable.hpp"
 #include "common/FileDescriptor.hpp"
+#include "common/StringUtils.hpp"
 #include "config/ServerConfig.hpp"
 #include "http/Request.hpp"
 #include "http/RequestParser.hpp"
@@ -22,8 +23,6 @@ public:
 	enum State {
 		DONE,
 		READING_HEADERS,
-		READING_BODY,
-		ROUTING,
 		WRITING_RESPONSE
 	};
 
@@ -68,6 +67,7 @@ private:
 
 	const ServerConfig& matchVirtualHost() const;
 	void                buildErrorResponse(int code);
+	bool                tryConsumeResidual();
 
 	Client(const Client&);
 	Client& operator=(const Client&);

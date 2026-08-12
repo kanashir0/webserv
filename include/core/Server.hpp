@@ -5,9 +5,13 @@
 #include "core/IPollable.hpp"
 #include "core/Client.hpp"
 #include "common/Socket.hpp"
+#include "common/Logger.hpp"
 #include "config/ServerConfig.hpp"
 #include "session/SessionStore.hpp"
 #include <vector>
+#include <map>
+
+typedef std::pair<std::string, int> Endpoint;
 
 class Router;
 
@@ -28,11 +32,7 @@ public:
 	void  onHangup();
 	bool  wantsClose() const;
 
-	void        addServer(ServerConfig& config);
 	void        checkTimeout(time_t now, time_t timeout);
-
-	std::string getHost();
-	int         getPort();
 
 private:
 	Socket                           socket_;
@@ -59,15 +59,15 @@ public:
 	SessionStore& sessions();
 
 private:
-	std::vector<ServerConfig>     configs_;
-	EventLoop                     loop_;
-	std::vector<ListeningSocket*> listeners_;
-	SessionStore                  sessions_;
-	Router&                       router_;
+	std::vector<ServerConfig>                      configs_;
+	std::vector<ListeningSocket*>                  listeners_;
+	SessionStore                                   sessions_;
+	Router&                                        router_;
+	EventLoop                                      loop_;
+
 
 	Server(const Server&);
 	Server& operator=(const Server&);
 };
-
 
 #endif

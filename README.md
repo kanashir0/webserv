@@ -444,7 +444,9 @@ Compõe um `FileDescriptor` internamente, herdando o comportamento RAII.
 
 #### `void setNonBlocking(int fd)`
 
-**O que faz:** `fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)`
+**O que faz:** `fcntl(fd, F_SETFL, O_NONBLOCK)`
+
+**Atenção — restrição do subject:** as únicas flags permitidas em `fcntl()` são `F_SETFL`, `O_NONBLOCK` e `FD_CLOEXEC`. **`F_GETFL` é proibido.** A forma idiomática `fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)` **não pode ser usada neste projeto**. Não há perda: `F_SETFL` só altera `O_APPEND`, `O_ASYNC`, `O_DIRECT`, `O_NOATIME` e `O_NONBLOCK` — os bits de modo de acesso (`O_RDONLY`/`O_WRONLY`) são ignorados por ele, não apagados. Um FD recém-saído de `socket()` ou `pipe()` não tem nenhuma dessas flags setada, então não há nada a preservar.
 
 **Por que é obrigatório:** sem esta chamada, `recv()` e `send()` bloqueiam o processo inteiro enquanto esperam dados. Com o FD em modo não-bloqueante, eles retornam imediatamente com `EAGAIN`/`EWOULDBLOCK` se não houver dados — e o `EventLoop` trata isso tentando novamente no próximo `poll()`.
 
@@ -842,7 +844,8 @@ Retorna `POLLIN` quando `state_` é `READING_*`, e `POLLOUT` quando é `WRITING_
 **O que faz (quando implementado pelo Membro 1):**
 1. `recv(fd_.get(), buf, sizeof(buf), 0)` — leitura não-bloqueante.
 2. Se retornou 0 → cliente fechou a conexão → `wantsClose_ = true`.
-3. Se retornou -1 com `EAGAIN/EWOULDBLOCK` → sem dados agora → aguarda próximo POLLIN.
+3. Se retornou -1 → **fecha a conexão** (`wantsClose_ = true`, `state_ = DONE`). Não se
+   checa `errno` para distinguir `EAGAIN` de erro real — ver o aviso abaixo.
 4. Se retornou > 0 → `parser_.feed(buf, n, clientMaxBodySize)`.
 5. Se resultado for `COMPLETE` → `state_ = ROUTING` → chama `router_.route(request_, matchVirtualHost())` → armazena resultado em `response_` → `outBuffer_ = response_.toString()` → `state_ = WRITING_RESPONSE`.
 6. Se resultado for `BAD_REQUEST`, `BODY_TOO_LARGE`, etc. → `buildErrorResponse(400)` → `state_ = WRITING_RESPONSE`.
@@ -855,9 +858,29 @@ Retorna `POLLIN` quando `state_` é `READING_*`, e `POLLOUT` quando é `WRITING_
 3. Se `outOffset_ >= outBuffer_.size()` → envio completo.
    - Se `!request_.keepAlive()` → `wantsClose_ = true`, `state_ = DONE`.
    - Senão → `parser_.reset()`, `state_ = READING_HEADERS` (reutiliza conexão).
-4. Se `send()` retornou -1 com `EAGAIN` → não fez nada; aguarda próximo POLLOUT.
+4. Se `send()` retornou -1 → **fecha a conexão** (`wantsClose_ = true`, `state_ = DONE`),
+   sem checar `errno`.
 
 **Por que offset:** `send()` pode enviar menos bytes do que pedido (envio parcial). O offset garante que o próximo `onWritable()` continue de onde parou, sem reenviar o que já foi.
+
+> ### ⚠️ Restrição do subject: proibido checar `errno` após `read`/`write`
+>
+> O subject proíbe consultar `errno` depois de `read`/`recv` e `write`/`send`. É violação
+> de norma, flagável na defesa — **não existe exceção, nem mesmo para `EAGAIN`**.
+>
+> A consequência prática é que `recv()`/`send()` retornando `-1` **não podem** ser
+> distinguidos entre "sem dados agora" e "erro real". A regra do projeto é: **`-1` fecha a
+> conexão.** Isso é seguro porque toda leitura e escrita só acontece dentro de
+> `onReadable()`/`onWritable()`, ou seja, apenas depois de o `poll()` ter sinalizado
+> `POLLIN`/`POLLOUT` naquele FD — o `EAGAIN` espúrio é raro o bastante para que fechar a
+> conexão seja o custo aceitável, e é assim que se cumpre a norma.
+>
+> **Não confunda com `strerror(errno)` em `socket()`, `bind()`, `listen()` e `fcntl()`:**
+> essas não são operações de I/O e a mensagem de erro delas continua obrigatória (E01-T01).
+>
+> Para `accept()` a proibição não é explícita no subject, mas a recomendação do projeto é a
+> mesma — tratar qualquer `-1` como "parar de aceitar nesta iteração" e sair do loop, sem
+> olhar `errno`. O comportamento é idêntico e evita discussão na defesa.
 
 #### `void onHangup()`
 
@@ -1497,7 +1520,8 @@ Permite configurar o TTL pelo `main()` ou pelo arquivo de config. Padrão: 3600 
 | Nunca ler/escrever sem `poll()` indicar | `IPollable::onReadable()`/`onWritable()` só são chamados após `poll()` |
 | `fork()` apenas para CGI | `CgiHandler::start()` |
 | Sem threads | Single-thread by design; `SessionStore` sem locks |
-| Sem `errno` após operações I/O | Verificar retorno das syscalls; `errno` só antes do próximo syscall |
+| Sem `errno` após `read`/`recv`/`write`/`send` | `-1` fecha a conexão; nunca se testa `EAGAIN`/`EWOULDBLOCK`. `strerror(errno)` continua permitido em `socket`/`bind`/`listen`/`fcntl` |
+| `fcntl()` apenas com `F_SETFL`, `O_NONBLOCK`, `FD_CLOEXEC` | `Socket::setNonBlocking()` e os pipes do CGI — `F_GETFL` é proibido |
 | Sem vazamento de memória | RAII em `FileDescriptor`; `reapClosed()` deleta `Client`s |
 | Sem vazamento de FD | RAII em `FileDescriptor`; `wantsClose()` garante fechamento |
 | C++98 strict | Sem `nullptr`, sem `auto`, sem range-for, sem `std::to_string`, sem smart pointers |

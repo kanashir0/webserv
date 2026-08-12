@@ -76,8 +76,8 @@ Passos no pai (após fork):
 
 ```cpp
 close(in[0]);  close(out[1]);                    // fecha pontas do filho
-fcntl(in[1],  F_SETFL, O_NONBLOCK);
-fcntl(out[0], F_SETFL, O_NONBLOCK);
+fcntl(in[1],  F_SETFL, O_NONBLOCK);              // F_GETFL é proibido pelo subject
+fcntl(out[0], F_SETFL, O_NONBLOCK);              // pipe novo não tem flags a preservar
 loop.add(this);                                  // CgiHandler é IPollable
 // interest() retorna POLLOUT até esgotar body, depois POLLIN para ler stdout
 ```
