@@ -173,6 +173,11 @@ std::vector<ServerConfig> ConfigParser::doParse() {
 		out.push_back(parseServerBlock());
 		state_ = TOPLEVEL;
 	}
+
+	// Sem isso o processo sobe sem listener nenhum e fica mudo, parecendo vivo.
+	if (out.empty())
+		throw ParseError("no server block defined", line_);
+
 	return out;
 }
 
@@ -266,12 +271,19 @@ LocationConfig ConfigParser::parseLocationBlock() {
 			requireArgCount(tok, args, 1, 2, line_);
 			if (args.size() == 2) {
 				loc.redirectCode = parseStatusCode(args[0], line_);
+				if (loc.redirectCode != 301 && loc.redirectCode != 302)
+					throw ParseError("return expects code 301 or 302, got '" + args[0] + "'", line_);
 				loc.redirect     = args[1];
 			} else {
 				loc.redirect = args[0];
 			}
 		} else if (tok == "upload_store") {
 			requireArgCount(tok, args, 1, 1, line_);
+			// Falhar no startup é muito mais barato de diagnosticar que um 500 no
+			// primeiro POST — mesma técnica do stat() em parseFile().
+			struct stat st;
+			if (stat(args[0].c_str(), &st) != 0 || !S_ISDIR(st.st_mode))
+				throw ParseError("upload_store is not an existing directory: '" + args[0] + "'", line_);
 			loc.uploadStore = args[0];
 		} else if (tok == "client_max_body_size") {
 			requireArgCount(tok, args, 1, 1, line_);

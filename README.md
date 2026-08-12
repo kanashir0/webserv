@@ -563,8 +563,8 @@ Todas estão no namespace `ws::str` para evitar colisão com funções do sistem
 | `root` | `string` | — | Diretório raiz no filesystem. Ex: `"./www"` |
 | `index` | `string` | — | Arquivo index padrão. Ex: `"index.html"` |
 | `autoindex` | `bool` | `false` | Se `true`, gera listagem de diretório quando não há index |
-| `redirect` | `string` | — | Se não vazio, redireciona para esta URL |
-| `redirectCode` | `int` | `302` | Código HTTP do redirect (301 ou 302) |
+| `redirect` | `string` | — | Se não vazio, redireciona para esta URL. **Diretiva no `.conf`: `return`** (estilo Nginx), não `redirect` |
+| `redirectCode` | `int` | `302` | Código HTTP do redirect. O parser aceita **apenas 301 ou 302**; qualquer outro valor é `ParseError` no startup |
 | `uploadStore` | `string` | — | Diretório onde arquivos POST são salvos |
 | `cgi` | `map<ext, interpreter>` | — | Ex: `{".py": "/usr/bin/python3"}` |
 
@@ -1105,7 +1105,7 @@ Implementado como namespace de funções livres em vez de classe com métodos es
 
 **O que faz:** cria uma resposta com `Location: url` e body vazio. `code` padrão = 302 (temporário).
 
-**Por que separar 301 e 302:** `redirect 301` diz ao navegador para cachear o redirect permanentemente. `redirect 302` é temporário. A `LocationConfig` tem `redirectCode` para configurar isso.
+**Por que separar 301 e 302:** `return 301` diz ao navegador para cachear o redirect permanentemente. `return 302` é temporário. A `LocationConfig` tem `redirectCode` para configurar isso.
 
 #### `Response makeFile(const std::string& fsPath, const std::string& mime)`
 

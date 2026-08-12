@@ -47,7 +47,6 @@ private:
 	std::string  buf_;
 	std::size_t  bytesRead_;
 	std::size_t  contentLength_;
-	bool         chunked_;
 	int          errorStatus_;
 
 	FeedResult parseRequestLine();

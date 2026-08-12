@@ -131,8 +131,17 @@ server {
         root ./cgi-bin;
         cgi .py /usr/bin/python3;
     }
+
+    location /old {
+        return 301 /;   # a diretiva é `return` (estilo Nginx), não `redirect`;
+    }                   # o campo do struct é que se chama LocationConfig::redirect
 }
 ```
+
+Validações que falham já no startup (`[ERROR] arquivo.conf:linha: mensagem`): porta fora
+de 1–65535, `methods` diferente de GET/POST/DELETE, `autoindex` diferente de on/off,
+`return` com código diferente de 301/302, `upload_store` apontando para diretório
+inexistente, e `.conf` sem nenhum bloco `server`.
 
 - `findLocation()` usa **longest-prefix match** (comportamento Nginx)
 - Virtual hosting: múltiplos `server {}` na mesma porta compartilham um único `ListeningSocket`; o `Client` seleciona o vhost pelo header `Host`
