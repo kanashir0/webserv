@@ -30,8 +30,15 @@ fclean: clean
 
 re: fclean all
 
+# Sem `|| true`: um teste que falha precisa falhar o alvo, senão a suíte é
+# decorativa. As três suítes rodam sempre; o exit code é o da última que falhou.
 test: $(NAME)
-	@bash tests/scripts/curl-suite.sh || true
+	@rc=0; \
+	for s in curl-suite test-edge-cases test-multi-server; do \
+		echo "=== $$s ==="; \
+		bash tests/scripts/$$s.sh || rc=1; \
+	done; \
+	exit $$rc
 
 .PHONY: all clean fclean re test
 

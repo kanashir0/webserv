@@ -5,7 +5,7 @@
 > **Valor entregue:** transformação de bytes brutos do socket em objeto `Request` validado e imutável. É o contrato entre o motor de rede (M1, que fornece bytes) e a lógica HTTP (M3, que consome `Request`). Sem este épico, o servidor não entende HTTP.
 > **Critério de "épico pronto":** parser aceita requisições HTTP/1.0 e HTTP/1.1 válidas (incluindo `Transfer-Encoding: chunked`), rejeita malformadas com o status correto (400/411/413/414/505), e suporta envio fragmentado (recv parcial).
 
-> **Status do épico (auditoria de 02/08/2026):** 🟢 **9 ✅ / 0 ⚠️ / 1 ❌** — **o módulo mais
+> **Status do épico (atualizado em 11/08/2026):** 🟢 **10 ✅ / 0 ⚠️ / 0 ❌ — épico fechado** — **o módulo mais
 > sólido do projeto.** Todas as tarefas de implementação estão fechadas e o parser entrega
 > mais do que foi pedido (ver a nota abaixo). Só falta a cobertura de testes (reescopada).
 > Legenda: ✅ feita e correta · ⚠️ feita, precisa reabrir · ❌ não iniciada.
@@ -183,10 +183,10 @@
 
 ---
 
-## ❌ E03-T10 — Cobertura do `RequestParser` no `test-edge-cases.sh`
+## ✅ E03-T10 — Cobertura do `RequestParser` no `test-edge-cases.sh`
 
 - **Owner:** M2
-- **Status:** ❌ PENDENTE — **reescopada em 02/08/2026** (era: "Testes unitários do `RequestParser`" em `tests/unit/test_request_parser.cpp`)
+- **Status:** ✅ CONCLUÍDA em 11/08/2026 — o caso de pipelining entra falhando de propósito (BUG-01-09). **Reescopada em 02/08/2026** (era: "Testes unitários do `RequestParser`" em `tests/unit/test_request_parser.cpp`)
 - **Tamanho:** M
 - **Arquivos afetados:** `tests/scripts/test-edge-cases.sh`
 - **Dependências:** E03-T01–E03-T09
@@ -214,7 +214,7 @@
 | E03-T07 | keepAlive | ✅ | S | T03 |
 | E03-T08 | take + reset | ✅ | S | T01 |
 | E03-T09 | errorStatus | ✅ | S | T01–T05 |
-| E03-T10 | Cobertura no test-edge-cases.sh | ❌ reescopada | M | T01–T09 |
+| E03-T10 | Cobertura no test-edge-cases.sh | ✅ | M | T01–T09 |
 
 ---
 

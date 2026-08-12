@@ -10,10 +10,13 @@
 > - Chrome e Firefox renderizam o site sem erros no devtools.
 > - Checklist do subject 42 100% verde.
 
-> **Status do épico (auditoria de 02/08/2026):** 🔴 **0 ✅ / 0 ⚠️ / 8 ❌** — nada iniciado.
-> O `curl-suite.sh` existe com 4 casos (um deles errado, ver
-> [BUG-08-01](#bug-08-01--o-curl-suite-espera-403-onde-o-servidor-responde-405)) e os scripts
-> de siege e valgrind estão no repositório mas nunca foram executados contra o servidor real.
+> **Status do épico (atualizado em 11/08/2026):** 🟡 **3 ✅ / 0 ⚠️ / 5 ❌** — as três suítes
+> de M2 (T01, T05, T06) foram entregues no PR `test/suites`, com infra compartilhada em
+> `tests/scripts/lib.sh`. **61 asserts passam; 9 falham de propósito**, cada uma nomeando o
+> bug que a destrava (BUG-05-01, BUG-01-04, BUG-01-05, BUG-01-09, BUG-02-04). É esse placar
+> que mostra quando as Fases A e B fecharam de verdade.
+> Siege (T02) segue sem nunca ter rodado; o valgrind (T03) já rodou limpo sobre o
+> `curl-suite`, mas sem exercitar o shutdown com clientes vivos.
 > Legenda: ✅ feita e correta · ⚠️ feita, precisa reabrir · ❌ não iniciada.
 
 ---
@@ -49,10 +52,10 @@ inteira de integração; e um teste que sobe o binário de verdade pega classes 
 
 ---
 
-## ❌ E08-T01 — Estender `tests/scripts/curl-suite.sh` (smoke completo)
+## ✅ E08-T01 — Estender `tests/scripts/curl-suite.sh` (smoke completo)
 
 - **Owner:** M2 (mantenedor da suite)
-- **Status:** ❌ PENDENTE — existem 4 casos hoje, um deles com expectativa errada ([BUG-08-01](#bug-08-01--o-curl-suite-espera-403-onde-o-servidor-responde-405)). **Escopo ampliado** pela política de testes acima: esta tarefa absorve a cobertura de E04-T09 e E05-T06
+- **Status:** ✅ CONCLUÍDA em 11/08/2026 — 25 asserts (21 passam, 4 bloqueados por BUG-05-01). **Escopo ampliado** pela política de testes acima: esta tarefa absorve a cobertura de E04-T09 e E05-T06
 - **Tamanho:** L (era M — cresceu com o reescopo das tarefas de teste unitário)
 - **Arquivos afetados:** `tests/scripts/curl-suite.sh`
 - **Dependências:** Épicos 01–05 funcionais
@@ -131,10 +134,10 @@ inteira de integração; e um teste que sobe o binário de verdade pega classes 
 
 ---
 
-## ❌ E08-T05 — Bateria de edge cases (`test-edge-cases.sh`)
+## ✅ E08-T05 — Bateria de edge cases (`test-edge-cases.sh`)
 
-- **Owner:** Todos
-- **Status:** ❌ PENDENTE — arquivo ainda não existe. **Escopo ampliado** pela política de testes: esta tarefa absorve a cobertura de E02-T08 e E03-T10
+- **Owner:** M2 (escrito por inteiro para evitar conflito de 3 autores no mesmo arquivo)
+- **Status:** ✅ CONCLUÍDA em 11/08/2026 — 37 asserts (35 passam, 2 bloqueados: BUG-01-09 e BUG-02-04). **Escopo ampliado** pela política de testes: esta tarefa absorve a cobertura de E02-T08 e E03-T10
 - **Tamanho:** L (era M)
 - **Arquivos afetados:** `tests/scripts/test-edge-cases.sh` (novo)
 - **Dependências:** Épicos 01–05
@@ -158,10 +161,10 @@ inteira de integração; e um teste que sobe o binário de verdade pega classes 
 
 ---
 
-## ❌ E08-T06 — Testes de configurações múltiplas
+## ✅ E08-T06 — Testes de configurações múltiplas
 
 - **Owner:** M2
-- **Status:** ❌ PENDENTE
+- **Status:** ✅ CONCLUÍDA em 11/08/2026 — 8 asserts (5 passam, 3 bloqueados por BUG-01-04/BUG-01-05)
 - **Tamanho:** M
 - **Arquivos afetados:** `tests/configs/multi-server.conf`, `tests/scripts/test-multi-server.sh` (novo)
 - **Dependências:** Épico 01, Épico 02
@@ -223,12 +226,12 @@ inteira de integração; e um teste que sobe o binário de verdade pega classes 
 
 | ID | Tarefa | Owner | Status | Tamanho |
 |----|--------|-------|--------|---------|
-| E08-T01 | curl-suite expandido | M2 | ❌ (escopo ampliado) | L |
+| E08-T01 | curl-suite expandido | M2 | ✅ | L |
 | E08-T02 | siege Availability ≥ 99.5% | M1 | ❌ | M |
 | E08-T03 | Valgrind (leaks + FDs) | Todos | ❌ | M |
 | E08-T04 | Browser testing | Todos | ❌ | S |
-| E08-T05 | Edge cases | Todos | ❌ (escopo ampliado) | L |
-| E08-T06 | Multi-server testing | M2 | ❌ | M |
+| E08-T05 | Edge cases | M2 | ✅ | L |
+| E08-T06 | Multi-server testing | M2 | ✅ | M |
 | E08-T07 | Doc operacional | Todos | ❌ | S |
 | E08-T08 | Code review final | Todos | ❌ | M |
 
@@ -238,7 +241,10 @@ inteira de integração; e um teste que sobe o binário de verdade pega classes 
 
 > Levantados na auditoria de 02/08/2026 sobre a branch `feat/request-pipeline`.
 
-### BUG-08-01 — O `curl-suite` espera 403 onde o servidor responde 405
+### ✅ BUG-08-01 — O `curl-suite` espera 403 onde o servidor responde 405
+
+> **Fechado em 11/08/2026.** A expectativa virou 405, e o cenário de 403 genuíno ganhou
+> caso próprio: `GET /errors/` (diretório sem index, `autoindex off`).
 
 - **Origem:** E08-T01
 - **Onde:** `tests/scripts/curl-suite.sh:31`
@@ -251,7 +257,10 @@ inteira de integração; e um teste que sobe o binário de verdade pega classes 
 - **Severidade:** Baixa — mas um teste que falha por engano ensina o time a ignorar falhas,
   que é o pior hábito possível numa suíte.
 
-### BUG-08-02 — O `curl-suite` não prepara nem limpa `www/uploads`
+### ✅ BUG-08-02 — O `curl-suite` não prepara nem limpa `www/uploads`
+
+> **Fechado em 11/08/2026.** `mkdir -p` + limpeza no setup e num `trap EXIT`, nas duas
+> suítes que escrevem arquivos. O `.gitkeep` entrou no PR `fix/config-semantics`.
 
 - **Origem:** E08-T01 (critério de idempotência)
 - **Onde:** `tests/scripts/curl-suite.sh` (não há setup/teardown)
@@ -264,7 +273,7 @@ inteira de integração; e um teste que sobe o binário de verdade pega classes 
   `.gitkeep` versionado.
 - **Severidade:** Baixa — mas é pré-requisito de qualquer caso de POST/DELETE confiável.
 
-### Nota — `make test` engole falhas
+### ✅ Nota — `make test` engole falhas
 
 - **Onde:** `Makefile`, alvo `test`: `@bash tests/scripts/curl-suite.sh || true`
 - **Sintoma:** o `|| true` garante que o `make test` **sempre** retorna 0, mesmo com testes
@@ -273,3 +282,5 @@ inteira de integração; e um teste que sobe o binário de verdade pega classes 
 - **Esperado:** remover o `|| true` assim que BUG-08-01 estiver corrigido, para que
   `make test` seja um sinal confiável.
 - **Severidade:** Baixa — resolver junto de E08-T01.
+- **Resolvido em 11/08/2026:** o alvo `test` roda as três suítes em sequência e propaga o
+  exit code da primeira que falhar.

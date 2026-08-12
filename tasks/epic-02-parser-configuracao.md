@@ -5,11 +5,12 @@
 > **Valor entregue:** capacidade de carregar um arquivo `.conf` no estilo Nginx e transformá-lo em uma estrutura `vector<ServerConfig>` consumível pelos demais módulos. Sem este épico, o servidor não sabe em qual porta escutar, qual diretório servir nem qual `client_max_body_size` aplicar.
 > **Critério de "épico pronto":** `./webserv conf/default.conf`, `./webserv tests/configs/basic.conf`, `./webserv tests/configs/multi-server.conf` e `./webserv tests/configs/cgi.conf` carregam sem erro e produzem `ServerConfig` corretos para cada teste do `curl-suite.sh`.
 
-> **Status do épico (atualizado em 11/08/2026):** 🟢 **7 ✅ / 0 ⚠️ / 1 ❌** — todo o código
+> **Status do épico (atualizado em 11/08/2026):** 🟢 **8 ✅ / 0 ⚠️ / 0 ❌ — épico fechado** — todo o código
 > do épico está fechado. As validações semânticas (BUG-02-01), a exibição do número da linha
 > (BUG-02-03) e o alinhamento da documentação (BUG-02-02) foram entregues no PR
-> `fix/config-semantics`. Só falta a cobertura de testes (E02-T08, reescopada para
-> `test-edge-cases.sh`). Ver [Bugs e ajustes abertos](#bugs-e-ajustes-abertos).
+> `fix/config-semantics`, e a cobertura de testes (E02-T08) no PR `test/suites`.
+> Resta o [BUG-02-04](#-bug-02-04--client_max_body_size-de-location-é-parseado-e-nunca-lido),
+> cuja correção pertence ao M1. Ver [Bugs e ajustes abertos](#bugs-e-ajustes-abertos).
 > Legenda: ✅ feita e correta · ⚠️ feita, precisa reabrir · ❌ não iniciada.
 
 ---
@@ -83,7 +84,7 @@
   - [x] `return 301 /new` produz `redirect="/new", redirectCode=301`. ← a diretiva é `return` (estilo Nginx), **não** `redirect`; o campo do struct é que se chama `redirect`
   - [x] `cgi .py /usr/bin/python3` insere `cgi[".py"] = "/usr/bin/python3"` (e valida que a extensão começa com `.`).
   - [x] Múltiplas diretivas `cgi` em um mesmo location são acumuladas no map.
-  - [x] `client_max_body_size` em location sobrescreve a do server para aquele scope.
+  - [ ] `client_max_body_size` em location sobrescreve a do server para aquele scope. ← o parser preenche o campo corretamente, mas **nenhum consumidor o lê**: ver [BUG-02-04](#-bug-02-04--client_max_body_size-de-location-é-parseado-e-nunca-lido). Caso no `test-edge-cases.sh` entra falhando até o M1 corrigir
 
 ---
 
@@ -139,20 +140,20 @@
 
 ---
 
-## ❌ E02-T08 — Cobertura do `ConfigParser` no `test-edge-cases.sh`
+## ✅ E02-T08 — Cobertura do `ConfigParser` no `test-edge-cases.sh`
 
 - **Owner:** M2
-- **Status:** ❌ PENDENTE — **reescopada em 02/08/2026** (era: "Testes unitários do `ConfigParser`" em `tests/unit/test_config_parser.cpp`)
+- **Status:** ✅ CONCLUÍDA em 11/08/2026 — 10 casos de config no `test-edge-cases.sh` (4 positivos, 10 negativos). **Reescopada em 02/08/2026** (era: "Testes unitários do `ConfigParser`" em `tests/unit/test_config_parser.cpp`)
 - **Tamanho:** S (era M)
 - **Arquivos afetados:** `tests/scripts/test-edge-cases.sh`, `tests/configs/*.conf`
 - **Dependências:** E02-T01–E02-T07
 - **Motivo do reescopo:** o padrão de teste do projeto é `curl-suite.sh` + `test-edge-cases.sh` (ver a política em [`epic-08-qualidade-testes.md`](epic-08-qualidade-testes.md)). Não haverá testes unitários em C++: a 42 avalia comportamento, o projeto não tem harness e criar um é custo que não paga.
 - **Descrição:** validar o parser pela porta da frente — subir o `./webserv` com cada config de `tests/configs/` e com configs propositalmente inválidas, verificando o exit code e a mensagem de erro no stderr.
 - **Critérios de aceite:**
-  - [ ] Cada `.conf` de `tests/configs/` sobe o servidor com exit code 0 e responde a um `curl` de sanidade.
-  - [ ] Pelo menos 6 configs inválidas (porta fora de faixa, diretiva desconhecida, `}` faltando, `;` faltando, `methods PUT`, `autoindex talvez`) fazem o binário sair com código ≠ 0.
-  - [ ] Cada caso negativo verifica a mensagem **e o número da linha** no stderr (depende de E02-T07 exibir a linha).
-  - [ ] Invocável por `make test`.
+  - [x] Cada `.conf` de `tests/configs/` sobe o servidor com exit code 0 e responde a um `curl` de sanidade.
+  - [x] Pelo menos 6 configs inválidas fazem o binário sair com código ≠ 0. ← são **10**: porta fora de faixa, diretiva desconhecida, `;` faltando (nos dois modos), `}` faltando, `methods PUT`, `autoindex talvez`, `return 404`, `upload_store` inexistente, `.conf` sem `server`
+  - [x] Cada caso negativo verifica a mensagem **e o número da linha** no stderr.
+  - [x] Invocável por `make test`.
 
 ---
 
@@ -167,7 +168,7 @@
 | E02-T05 | Validação semântica | ✅ | M | T03, T04 |
 | E02-T06 | findLocation | ✅ | S | T04 |
 | E02-T07 | ParseError com linha | ✅ | S | T02 |
-| E02-T08 | Cobertura no test-edge-cases.sh | ❌ reescopada | S | T01–T07 |
+| E02-T08 | Cobertura no test-edge-cases.sh | ✅ | S | T01–T07 |
 
 ---
 

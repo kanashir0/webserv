@@ -15,15 +15,16 @@
 | # | Épico | Arquivo | Dono | Status |
 |---|-------|---------|------|--------|
 | 01 | Motor de Rede e Reactor Pattern | [`epic-01-motor-de-rede.md`](epic-01-motor-de-rede.md) | M1 | 🟡 5 ✅ / 8 ⚠️ / 0 ❌ |
-| 02 | Parser de Configuração | [`epic-02-parser-configuracao.md`](epic-02-parser-configuracao.md) | M2 | 🟢 7 ✅ / 0 ⚠️ / 1 ❌ |
-| 03 | Parser HTTP de Requisições | [`epic-03-parser-http.md`](epic-03-parser-http.md) | M2 | 🟢 9 ✅ / 0 ⚠️ / 1 ❌ |
+| 02 | Parser de Configuração | [`epic-02-parser-configuracao.md`](epic-02-parser-configuracao.md) | M2 | 🟢 8 ✅ / 0 ⚠️ / 0 ❌ |
+| 03 | Parser HTTP de Requisições | [`epic-03-parser-http.md`](epic-03-parser-http.md) | M2 | 🟢 10 ✅ / 0 ⚠️ / 0 ❌ |
 | 04 | Resposta HTTP e Roteamento | [`epic-04-resposta-roteamento.md`](epic-04-resposta-roteamento.md) | M3 | 🟢 7 ✅ / 0 ⚠️ / 3 ❌ |
 | 05 | Handlers HTTP (GET/POST/DELETE) | [`epic-05-handlers-http.md`](epic-05-handlers-http.md) | M3 | 🟡 4 ✅ / 0 ⚠️ / 2 ❌ |
 | 06 | CGI | [`epic-06-cgi.md`](epic-06-cgi.md) | M1 + M3 | 🔴 0 ✅ / 1 ⚠️ / 8 ❌ |
 | 07 | Bônus: Sessões e Cookies | [`epic-07-bonus-sessoes.md`](epic-07-bonus-sessoes.md) | M3 | 🟡 2 ✅ / 2 ⚠️ / 3 ❌ |
-| 08 | Qualidade, Testes e Integração | [`epic-08-qualidade-testes.md`](epic-08-qualidade-testes.md) | Todos | 🔴 0 ✅ / 0 ⚠️ / 8 ❌ |
+| 08 | Qualidade, Testes e Integração | [`epic-08-qualidade-testes.md`](epic-08-qualidade-testes.md) | Todos | 🟡 3 ✅ / 0 ⚠️ / 5 ❌ |
 
-**Total: 71 tarefas** — 32 ✅ · 13 ⚠️ · 26 ❌.
+**Total: 71 tarefas** — 37 ✅ · 11 ⚠️ · 23 ❌ (atualizado em 11/08/2026: E02-T05/T07/T08,
+E03-T10 e E08-T01/T05/T06 fechados pelos PRs `fix/config-semantics` e `test/suites`).
 (69 do backlog original + 2 criadas na auditoria: E04-T10 e E06-T09. A contagem de "~62"
 das versões anteriores deste documento estava errada.)
 
@@ -93,8 +94,8 @@ seção "Bugs e ajustes abertos" do épico correspondente.
 | ✅ Fechado | BUG-05-02 | `www/uploads` não versionado | [05](epic-05-handlers-http.md) |
 | 🟢 Baixa | BUG-06-01 | `makeFromCgi` devolve 502 onde o critério pedia tolerância | [06](epic-06-cgi.md) |
 | 🟢 Baixa | BUG-07-03 | `setCookie` sem `Path=/` por padrão | [07](epic-07-bonus-sessoes.md) |
-| 🟢 Baixa | BUG-08-01 | `curl-suite` espera 403 onde o servidor responde 405 | [08](epic-08-qualidade-testes.md) |
-| 🟢 Baixa | BUG-08-02 | `curl-suite` não prepara nem limpa `www/uploads` | [08](epic-08-qualidade-testes.md) |
+| ✅ Fechado | BUG-08-01 | `curl-suite` espera 403 onde o servidor responde 405 | [08](epic-08-qualidade-testes.md) |
+| ✅ Fechado | BUG-08-02 | `curl-suite` não prepara nem limpa `www/uploads` | [08](epic-08-qualidade-testes.md) |
 
 ---
 
@@ -132,9 +133,10 @@ Pré-requisitos de fora do épico: BUG-01-06, BUG-01-07 e BUG-01-01.
 
 - E04-T08 (`Request::cookie`) e E04-T10 (`Date`/`Server`/`Connection`)
 - E05-T03 (caminho POST do CGI, depois da Fase B)
-- BUG-05-02 (`.gitkeep` em `www/uploads`) e BUG-02-01/02/03
-- E08-T01 e E08-T05 — as duas suítes de teste, agora ampliadas
-- E08-T04 (browsers), E08-T06 (multi-server), E08-T08 (review final)
+- ~~BUG-05-02 (`.gitkeep` em `www/uploads`) e BUG-02-01/02/03~~ ✅ fechados em 11/08/2026
+- ~~E08-T01 e E08-T05 — as duas suítes de teste~~ ✅ entregues em 11/08/2026
+- ~~E08-T06 (multi-server)~~ ✅ entregue em 11/08/2026
+- E08-T04 (browsers), E08-T08 (review final)
 
 **Saída da fase: tag `v0.1`.**
 
@@ -193,12 +195,14 @@ tarefa pode ser marcada `done` alegando cobertura unitária.
 - **Épico 08:** T02 (siege), T03 parcial.
 
 ### M2 — Parsers e Configuração
-- **Épico 02:** 8 tarefas — T05 e T07 a reabrir, T08 reescopada.
-- **Épico 03:** 10 tarefas — **9 fechadas**, só T10 (reescopada) pendente. Módulo mais sólido do projeto.
-- **Épico 08:** T01 (curl-suite, escopo ampliado), T06 (multi-server).
+- **Épico 02:** 8 tarefas — **todas fechadas**.
+- **Épico 03:** 10 tarefas — **todas fechadas**. Módulo mais sólido do projeto.
+- **Épico 08:** T01, T05 e T06 entregues (as três suítes + `lib.sh`).
 
-> M2 está com a menor dívida técnica. Bom candidato a assumir E08-T01/T05 cedo, já que as
-> suítes de teste destravam a validação das Fases A e B.
+> **M2 não tem mais tarefa aberta.** As suítes estão no ar e são o placar das Fases A e B:
+> 61 asserts passam e 9 falham de propósito, cada uma nomeando o bug que a destrava. O que
+> sobra do lado do M2 é manutenção da suíte conforme os outros épicos fecharem, e o
+> BUG-02-04 aguardando correção do M1 no `Client`.
 
 ### M3 — Lógica HTTP, Sessões, CGI env
 - **Épico 04:** 10 tarefas — 7 fechadas; falta T08 (cookie), T09 (reescopada), T10 (nova).
