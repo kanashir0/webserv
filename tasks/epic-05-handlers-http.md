@@ -180,7 +180,13 @@
   ou toque em `upload_store` entrega tudo. É o tipo de coisa que reprova no defense, e o
   critério de "épico pronto" do E06 já exigia GET a scripts Python.
 
-### BUG-05-02 — `www/uploads` não existe no repositório
+### ✅ BUG-05-02 — `www/uploads` não existe no repositório
+
+> **Fechado em 11/08/2026** pelo PR `fix/config-semantics` (M2). `www/uploads/.gitkeep`
+> versionado. O bug foi forçado à tona pela nova validação de `upload_store` do
+> [BUG-02-01](epic-02-parser-configuracao.md#bug-02-01--três-validações-semânticas-de-e02-t05-não-foram-implementadas):
+> em vez de um 500 no primeiro POST, o `conf/default.conf` passou a falhar já no startup
+> com `[ERROR] conf/default.conf:19: upload_store is not an existing directory`.
 
 - **Origem:** E05-T02 (o handler está certo; o repositório é que está incompleto)
 - **Onde:** `conf/default.conf:19` aponta `upload_store ./www/uploads`; o diretório não está

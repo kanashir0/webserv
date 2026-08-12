@@ -5,9 +5,11 @@
 > **Valor entregue:** capacidade de carregar um arquivo `.conf` no estilo Nginx e transformá-lo em uma estrutura `vector<ServerConfig>` consumível pelos demais módulos. Sem este épico, o servidor não sabe em qual porta escutar, qual diretório servir nem qual `client_max_body_size` aplicar.
 > **Critério de "épico pronto":** `./webserv conf/default.conf`, `./webserv tests/configs/basic.conf`, `./webserv tests/configs/multi-server.conf` e `./webserv tests/configs/cgi.conf` carregam sem erro e produzem `ServerConfig` corretos para cada teste do `curl-suite.sh`.
 
-> **Status do épico (auditoria de 02/08/2026):** 🟢 **5 ✅ / 2 ⚠️ / 1 ❌** — o parser está
-> sólido e carrega todas as configs do repositório. Faltam validações semânticas, a exibição
-> do número da linha no erro, e a cobertura de testes (reescopada). Ver [Bugs e ajustes abertos](#bugs-e-ajustes-abertos).
+> **Status do épico (atualizado em 11/08/2026):** 🟢 **7 ✅ / 0 ⚠️ / 1 ❌** — todo o código
+> do épico está fechado. As validações semânticas (BUG-02-01), a exibição do número da linha
+> (BUG-02-03) e o alinhamento da documentação (BUG-02-02) foram entregues no PR
+> `fix/config-semantics`. Só falta a cobertura de testes (E02-T08, reescopada para
+> `test-edge-cases.sh`). Ver [Bugs e ajustes abertos](#bugs-e-ajustes-abertos).
 > Legenda: ✅ feita e correta · ⚠️ feita, precisa reabrir · ❌ não iniciada.
 
 ---
@@ -85,10 +87,10 @@
 
 ---
 
-## ⚠️ E02-T05 — Validação semântica das diretivas
+## ✅ E02-T05 — Validação semântica das diretivas
 
 - **Owner:** M2
-- **Status:** ⚠️ REABRIR — ver [BUG-02-01](#bug-02-01--três-validações-semânticas-de-e02-t05-não-foram-implementadas)
+- **Status:** ✅ CONCLUÍDA — [BUG-02-01](#bug-02-01--três-validações-semânticas-de-e02-t05-não-foram-implementadas) fechado em 11/08/2026
 - **Tamanho:** M
 - **Arquivos afetados:** `src/config/ConfigParser.cpp`
 - **Dependências:** E02-T03, E02-T04
@@ -96,10 +98,10 @@
 - **Critérios de aceite:**
   - [x] Porta `0` ou `> 65535` gera `ParseError`.
   - [x] `methods PUT` gera `ParseError` com o nome do método.
-  - [ ] `return 999 /foo` gera `ParseError` (código inválido). ← `parseStatusCode` só valida a faixa 100–599; qualquer código dessa faixa passa, e só o `ResponseFactory::makeRedirect` rejeita depois (virando 500 em runtime em vez de erro de config)
-  - [ ] Arquivo `.conf` sem nenhum `server` gera `ParseError`. ← hoje retorna vetor vazio e o servidor sobe sem escutar em lugar nenhum
+  - [x] `return 999 /foo` gera `ParseError` (código inválido). ← restrito a **301/302** em `ConfigParser.cpp`; um `return 404 /foo` agora falha no startup em vez de virar 500 em runtime
+  - [x] Arquivo `.conf` sem nenhum `server` gera `ParseError`. ← `doParse()` rejeita vetor vazio; antes o processo subia mudo, sem listener nenhum
   - [x] Diretiva desconhecida (ex: `foobar baz;`) gera `ParseError` com nome da diretiva.
-  - [ ] `upload_store` (se definido) é um diretório existente. ← não validado
+  - [x] `upload_store` (se definido) é um diretório existente. ← `stat()` + `S_ISDIR`, mesma técnica já usada em `parseFile()`
 
 ---
 
@@ -121,10 +123,10 @@
 
 ---
 
-## ⚠️ E02-T07 — Tratamento de `ParseError` com número de linha
+## ✅ E02-T07 — Tratamento de `ParseError` com número de linha
 
 - **Owner:** M2
-- **Status:** ⚠️ REABRIR — ver [BUG-02-03](#bug-02-03--o-número-da-linha-do-parseerror-nunca-chega-ao-usuário)
+- **Status:** ✅ CONCLUÍDA — [BUG-02-03](#bug-02-03--o-número-da-linha-do-parseerror-nunca-chega-ao-usuário) fechado em 11/08/2026
 - **Tamanho:** S
 - **Arquivos afetados:** `src/config/ConfigParser.cpp`, `src/main.cpp`
 - **Dependências:** E02-T02
@@ -133,7 +135,7 @@
   - [x] Toda `ParseError` carrega `line_`.
   - [x] `main()` retorna código de saída ≠ 0 em caso de erro.
   - [x] Mensagem contém o token problemático ou a diretiva inválida.
-  - [ ] Saída no formato `[ERROR] arquivo.conf:linha: mensagem`. ← o `main.cpp` captura `std::exception` genérico e imprime só `fatal: <what()>`; o número da linha existe no objeto mas **nunca é exibido**
+  - [x] Saída no formato `[ERROR] arquivo.conf:linha: mensagem`. ← `catch (const ConfigParser::ParseError&)` em `src/main.cpp`, **antes** do catch genérico
 
 ---
 
@@ -162,9 +164,9 @@
 | E02-T02 | tokenizer | ✅ | M | T01 |
 | E02-T03 | doParse + parseServerBlock | ✅ | L | T02 |
 | E02-T04 | parseLocationBlock | ✅ | L | T03 |
-| E02-T05 | Validação semântica | ⚠️ BUG-02-01 | M | T03, T04 |
+| E02-T05 | Validação semântica | ✅ | M | T03, T04 |
 | E02-T06 | findLocation | ✅ | S | T04 |
-| E02-T07 | ParseError com linha | ⚠️ BUG-02-03 | S | T02 |
+| E02-T07 | ParseError com linha | ✅ | S | T02 |
 | E02-T08 | Cobertura no test-edge-cases.sh | ❌ reescopada | S | T01–T07 |
 
 ---
@@ -172,8 +174,39 @@
 ## Bugs e ajustes abertos
 
 > Levantados na auditoria de 02/08/2026 sobre a branch `feat/request-pipeline`.
+> **BUG-02-01, BUG-02-02 e BUG-02-03 foram fechados em 11/08/2026** pelo PR
+> `fix/config-semantics` e ficam abaixo como registro. O único bug aberto do épico é o
+> **BUG-02-04**, cuja correção pertence ao M1.
 
-### BUG-02-01 — Três validações semânticas de E02-T05 não foram implementadas
+### 🆕 BUG-02-04 — `client_max_body_size` de location é parseado e nunca lido
+
+- **Origem:** E02-T04 (critério de aceite marcado ✅ que na prática não tem efeito)
+- **Onde:** `include/config/LocationConfig.hpp:20` (campo), `src/config/ConfigParser.cpp`
+  (diretiva `client_max_body_size` no bloco `location`), `src/core/Client.cpp:65` (causa raiz)
+- **Sintoma:** o parser aceita `client_max_body_size` dentro de um `location` e preenche
+  `LocationConfig::clientMaxBodySize`, mas **nenhum consumidor lê esse campo**. O único
+  lugar que aplica o limite é `Client.cpp:65`, que usa o do `ServerConfig`. O override por
+  location — que `conf/default.conf:20` já usa (`10m` no `/upload`) — é código morto.
+- **Agrava:** `Client.cpp:65` chama `matchVirtualHost().clientMaxBodySize` **antes** do
+  parse, quando `request_` ainda está vazio. Logo o header `Host` é `""`, o match cai
+  sempre no `vhosts_.front()`, e nem o limite **por vhost** é respeitado. O
+  `tryConsumeResidual` do [PR #34](https://github.com/kanashir0/webserv/pull/34) repete o
+  mesmo padrão.
+- **Esperado:** o `Client` resolver vhost e location **depois** dos headers e antes do body,
+  e passar `loc->clientMaxBodySize` (com fallback para o do server) ao `feed()`. O
+  `RequestParser` já suporta: `maxBody` é parâmetro de `feed()`, não estado do parser, e o
+  loop de `feed()` só entra em `BODY_*` depois de `parseHeaders()` retornar.
+- **Severidade:** Média — o critério de aceite de E02-T04 e a config default do projeto
+  documentam um comportamento que não existe.
+- **Owner:** M1 (a mudança é no `Client`; o dado do M2 já está correto).
+
+### ✅ BUG-02-01 — Três validações semânticas de E02-T05 não foram implementadas
+
+> **Fechado em 11/08/2026.** As três validam no parse, com `ParseError` e linha. A do
+> `upload_store` expôs o [BUG-05-02](epic-05-handlers-http.md#bugs-e-ajustes-abertos) já no
+> startup: `conf/default.conf` não carregava porque `./www/uploads` não existia no
+> repositório — o `.gitkeep` entrou no mesmo PR.
+
 
 - **Origem:** E02-T05
 - **Onde:** `src/config/ConfigParser.cpp`
@@ -195,7 +228,11 @@
 - **Severidade:** Baixa individualmente; juntas transformam três bugs obscuros em erros
   óbvios de configuração.
 
-### BUG-02-03 — O número da linha do `ParseError` nunca chega ao usuário
+### ✅ BUG-02-03 — O número da linha do `ParseError` nunca chega ao usuário
+
+> **Fechado em 11/08/2026.** `catch (const ConfigParser::ParseError& e)` em `src/main.cpp`,
+> antes do catch genérico, imprimindo `[ERROR] <argv[1]>:<linha>: <mensagem>`.
+
 
 - **Origem:** E02-T07
 - **Onde:** `src/main.cpp:35-37`
@@ -208,7 +245,13 @@
 - **Severidade:** Baixa — mas é o critério de aceite mais visível de E02-T07, e
   E02-T08 depende dele para validar os casos negativos.
 
-### BUG-02-02 — A diretiva de redirect chama-se `return`, mas a documentação diz `redirect`
+### ✅ BUG-02-02 — A diretiva de redirect chama-se `return`, mas a documentação diz `redirect`
+
+> **Fechado em 11/08/2026.** Decisão: manter `return` (é o nome do Nginx) e alinhar a
+> documentação. `CLAUDE.md` ganhou um `location /old { return 301 /; }` no exemplo de
+> config, com a nota sobre a assimetria diretiva × campo do struct; `README.md` teve a
+> tabela de campos de `LocationConfig` e a seção de `makeRedirect` corrigidas.
+
 
 - **Origem:** E02-T04
 - **Onde:** `src/config/ConfigParser.cpp:265` (implementado como `return`, estilo Nginx)

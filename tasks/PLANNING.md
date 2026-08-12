@@ -15,7 +15,7 @@
 | # | Épico | Arquivo | Dono | Status |
 |---|-------|---------|------|--------|
 | 01 | Motor de Rede e Reactor Pattern | [`epic-01-motor-de-rede.md`](epic-01-motor-de-rede.md) | M1 | 🟡 5 ✅ / 8 ⚠️ / 0 ❌ |
-| 02 | Parser de Configuração | [`epic-02-parser-configuracao.md`](epic-02-parser-configuracao.md) | M2 | 🟢 5 ✅ / 2 ⚠️ / 1 ❌ |
+| 02 | Parser de Configuração | [`epic-02-parser-configuracao.md`](epic-02-parser-configuracao.md) | M2 | 🟢 7 ✅ / 0 ⚠️ / 1 ❌ |
 | 03 | Parser HTTP de Requisições | [`epic-03-parser-http.md`](epic-03-parser-http.md) | M2 | 🟢 9 ✅ / 0 ⚠️ / 1 ❌ |
 | 04 | Resposta HTTP e Roteamento | [`epic-04-resposta-roteamento.md`](epic-04-resposta-roteamento.md) | M3 | 🟢 7 ✅ / 0 ⚠️ / 3 ❌ |
 | 05 | Handlers HTTP (GET/POST/DELETE) | [`epic-05-handlers-http.md`](epic-05-handlers-http.md) | M3 | 🟡 4 ✅ / 0 ⚠️ / 2 ❌ |
@@ -84,12 +84,13 @@ seção "Bugs e ajustes abertos" do épico correspondente.
 | 🟡 Média | BUG-01-07 | `~EventLoop` vaza os `IPollable*` no shutdown | [01](epic-01-motor-de-rede.md) |
 | 🟡 Média | BUG-01-08 | Estados mortos no `Client`; `recv` ignora `errno` | [01](epic-01-motor-de-rede.md) |
 | 🟡 Média | BUG-01-09 | Keep-alive descarta requests em pipelining | [01](epic-01-motor-de-rede.md) |
-| 🟡 Média | BUG-05-02 | `www/uploads` não versionado → todo upload dá 500 | [05](epic-05-handlers-http.md) |
 | 🟢 Baixa | BUG-01-01 | `setNonBlocking` apaga as flags do FD | [01](epic-01-motor-de-rede.md) |
 | 🟢 Baixa | BUG-01-10 | `std::cout` de debug, código comentado, erros sem `errno` | [01](epic-01-motor-de-rede.md) |
-| 🟢 Baixa | BUG-02-01 | 3 validações semânticas de config faltando | [02](epic-02-parser-configuracao.md) |
-| 🟢 Baixa | BUG-02-02 | Diretiva é `return`; docs dizem `redirect` | [02](epic-02-parser-configuracao.md) |
-| 🟢 Baixa | BUG-02-03 | O número da linha do `ParseError` nunca é exibido | [02](epic-02-parser-configuracao.md) |
+| ✅ Fechado | BUG-02-01 | 3 validações semânticas de config faltando | [02](epic-02-parser-configuracao.md) |
+| ✅ Fechado | BUG-02-02 | Diretiva é `return`; docs dizem `redirect` | [02](epic-02-parser-configuracao.md) |
+| ✅ Fechado | BUG-02-03 | O número da linha do `ParseError` nunca é exibido | [02](epic-02-parser-configuracao.md) |
+| 🟡 Média | BUG-02-04 | `client_max_body_size` de location nunca é lido (correção no `Client`, M1) | [02](epic-02-parser-configuracao.md) |
+| ✅ Fechado | BUG-05-02 | `www/uploads` não versionado | [05](epic-05-handlers-http.md) |
 | 🟢 Baixa | BUG-06-01 | `makeFromCgi` devolve 502 onde o critério pedia tolerância | [06](epic-06-cgi.md) |
 | 🟢 Baixa | BUG-07-03 | `setCookie` sem `Path=/` por padrão | [07](epic-07-bonus-sessoes.md) |
 | 🟢 Baixa | BUG-08-01 | `curl-suite` espera 403 onde o servidor responde 405 | [08](epic-08-qualidade-testes.md) |

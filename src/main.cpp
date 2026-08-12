@@ -27,11 +27,11 @@ int main(int argc, char** argv) {
 		Router       router(sessions);
 		Server       server(configs, router);
 
-		LOG_INFO("webserv starting (skeleton, no real I/O yet)");
-		// std::vector<ServerConfig> configue;
-		// configue.push_back(ServerConfig());
-		// Server       servidor(configue, router);
+		LOG_INFO("webserv starting");
 		server.start();
+	} catch (const ConfigParser::ParseError& e) {
+		std::cerr << "[ERROR] " << confPath << ":" << e.line() << ": " << e.what() << std::endl;
+		return 1;
 	} catch (const std::exception& e) {
 		std::cerr << "fatal: " << e.what() << std::endl;
 		return 1;

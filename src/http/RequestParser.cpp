@@ -44,7 +44,6 @@ RequestParser::RequestParser()
 	, buf_()
 	, bytesRead_(0)
 	, contentLength_(0)
-	, chunked_(false)
 	, errorStatus_(0)
 {}
 
@@ -100,7 +99,6 @@ Request RequestParser::take() {
 	building_      = Request();
 	bytesRead_     = 0;
 	contentLength_ = 0;
-	chunked_       = false;
 	errorStatus_   = 0;
 	return out; // buf_ preservado: pode conter a próxima request (pipelining)
 }
@@ -213,14 +211,16 @@ RequestParser::FeedResult RequestParser::parseHeaders() {
 			state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
 			return BAD_REQUEST;
 		}
-		chunked_ = true;
-		state_   = BODY_CHUNKED;
+		state_ = BODY_CHUNKED;
 		return NEED_MORE;
 	}
 
 	if (hasCL) {
-		bool ok = false;
-		long v  = StringUtils::toLong(building_.header("Content-Length"), ok);
+		// RFC 7230 §3.3.2: Content-Length = 1*DIGIT. toLong herda o aceite de
+		// sinal do strtol, então "+12" e "-0" passariam sem este filtro.
+		const std::string& cl = building_.header("Content-Length");
+		bool ok = !cl.empty() && cl.find_first_not_of("0123456789") == std::string::npos;
+		long v  = ok ? StringUtils::toLong(cl, ok) : 0;
 		if (!ok || v < 0) {
 			state_ = ERROR; errorStatus_ = HTTP_BAD_REQUEST;
 			return BAD_REQUEST;
