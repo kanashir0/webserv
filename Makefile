@@ -31,7 +31,7 @@ fclean: clean
 re: fclean all
 
 test: $(NAME)
-	@bash tests/scripts/curl-suite.sh || true
+	@bash tests/scripts/curl-suite.sh
 
 .PHONY: all clean fclean re test
 

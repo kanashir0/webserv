@@ -19,11 +19,6 @@ static std::string parentDir(const std::string& fsPath) {
 	return fsPath.substr(0, slash);
 }
 
-static std::string basenameOf(const std::string& s) {
-	std::string::size_type cut = s.find_last_of("/\\");
-	return cut == std::string::npos ? s : s.substr(cut + 1);
-}
-
 // Uploads gravam em upload_store, nao sob o root; o DELETE precisa
 // resolver no mesmo lugar para a location ser simetrica com o POST.
 static int resolveInUploadStore(const std::string& uriPath,
@@ -36,7 +31,7 @@ static int resolveInUploadStore(const std::string& uriPath,
 	if (decoded.empty() || decoded[decoded.size() - 1] == '/') {
 		return HTTP_NOT_FOUND;
 	}
-	std::string name = basenameOf(decoded);
+	std::string name = PathResolver::basename(decoded);
 	if (name.empty() || name == "." || name == "..") {
 		return HTTP_NOT_FOUND;
 	}

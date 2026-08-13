@@ -10,26 +10,8 @@
 #include <unistd.h>
 
 
-static bool findCgiInterpreter(const std::string& decodedPath,
-                               const LocationConfig& loc,
-                               std::string& interpreter) {
-	for (std::map<std::string, std::string>::const_iterator it = loc.cgi.begin();
-	     it != loc.cgi.end(); ++it) {
-		if (!it->first.empty() && StringUtils::endsWith(decodedPath, it->first)) {
-			interpreter = it->second;
-			return true;
-		}
-	}
-	return false;
-}
-
-static std::string basenameOf(const std::string& s) {
-	std::string::size_type cut = s.find_last_of("/\\");
-	return cut == std::string::npos ? s : s.substr(cut + 1);
-}
-
 static std::string sanitizeFilename(const std::string& rawName) {
-	std::string name = basenameOf(rawName);
+	std::string name = PathResolver::basename(rawName);
 	if (name.empty() || name == "." || name == "..") {
 		return std::string();
 	}
@@ -53,22 +35,22 @@ static std::string filenameFromUri(const std::string& decodedPath, const std::st
 	if (decodedPath.empty() || decodedPath[decodedPath.size() - 1] == '/') {
 		return std::string();
 	}
-	std::string prefix = locPath;
-	if (prefix.size() > 1 && prefix[prefix.size() - 1] == '/') {
-		prefix.erase(prefix.size() - 1);
-	}
-	if (decodedPath == prefix) {
+	if (decodedPath == PathResolver::stripTrailingSlash(locPath)) {
 		return std::string();
 	}
-	return basenameOf(decodedPath);
+	return PathResolver::basename(decodedPath);
 }
 
-static bool isMultipart(const std::string& contentType) {
-	return StringUtils::startsWith(StringUtils::toLower(contentType), "multipart/form-data");
+static bool isMultipart(const std::string& lowerContentType) {
+	return StringUtils::startsWith(lowerContentType, "multipart/form-data");
 }
 
-static bool extractBoundary(const std::string& contentType, std::string& boundary) {
-	std::string::size_type pos = StringUtils::toLower(contentType).find("boundary=");
+// Recebe o Content-Type original e a versao minuscula ja calculada: o valor do
+// boundary e case-sensitive, mas o nome do parametro nao.
+static bool extractBoundary(const std::string& contentType,
+                            const std::string& lowerContentType,
+                            std::string& boundary) {
+	std::string::size_type pos = lowerContentType.find("boundary=");
 	if (pos == std::string::npos) {
 		return false;
 	}
@@ -137,17 +119,10 @@ static bool writeFile(const std::string& dest, const std::string& content) {
 PostHandler::PostHandler() {}
 PostHandler::~PostHandler() {}
 
+// O caso CGI e interceptado pelo Router antes de chegar aqui.
 Response PostHandler::handle(const Request& req,
                              const LocationConfig& loc,
                              const ServerConfig& srv) {
-	std::string decodedPath;
-	if (!PathResolver::percentDecode(req.path(), decodedPath)) {
-		return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv);
-	}
-	std::string interpreter;
-	if (findCgiInterpreter(decodedPath, loc, interpreter)) {
-		return handleCgi(req, loc, srv, interpreter);
-	}
 	return handleUpload(req, loc, srv);
 }
 
@@ -170,18 +145,22 @@ Response PostHandler::handleUpload(const Request& req,
 		return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv);
 	}
 
-	std::string filename;
-	std::string content;
-	const std::string contentType = req.header("Content-Type");
-	if (isMultipart(contentType)) {
+	std::string       filename;
+	std::string       extracted;
+	const std::string contentType      = req.header("Content-Type");
+	const std::string lowerContentType = StringUtils::toLower(contentType);
+
+	// Aponta para o corpo original quando nao ha multipart, evitando copiar ate
+	// client_max_body_size a cada upload.
+	const std::string* content = &req.body();
+	if (isMultipart(lowerContentType)) {
 		std::string boundary;
-		if (!extractBoundary(contentType, boundary) ||
-		    !firstMultipartPart(req.body(), boundary, filename, content)) {
+		if (!extractBoundary(contentType, lowerContentType, boundary) ||
+		    !firstMultipartPart(req.body(), boundary, filename, extracted)) {
 			LOG_WARN("PostHandler: multipart/form-data malformado");
 			return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv);
 		}
-	} else {
-		content = req.body();
+		content = &extracted;
 	}
 
 	if (filename.empty()) {
@@ -193,7 +172,7 @@ Response PostHandler::handleUpload(const Request& req,
 	}
 
 	const std::string dest = PathResolver::joinPath(loc.uploadStore, filename);
-	if (!writeFile(dest, content)) {
+	if (!writeFile(dest, *content)) {
 		LOG_ERROR("PostHandler: falha ao gravar \"" + dest + "\"");
 		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv);
 	}
@@ -206,12 +185,4 @@ Response PostHandler::handleUpload(const Request& req,
 	r.setHeader("Content-Location", publicBase + PathResolver::encodeSegment(filename));
 	r.setBody("");
 	return r;
-}
-
-Response PostHandler::handleCgi(const Request& /*req*/,
-                                const LocationConfig& /*loc*/,
-                                const ServerConfig& srv,
-                                const std::string& /*interpreter*/) {
-	// TODO Membro 3 + Membro 1 (E05-T03/E06): integracao assincrona com CgiHandler
-	return ResponseFactory::makeError(HTTP_NOT_IMPLEMENTED, srv);
 }

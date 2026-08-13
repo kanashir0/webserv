@@ -15,7 +15,7 @@ public:
 	static Response makeAutoindex(const std::string& fsPath,
 	                              const std::string& uriPath,
 	                              const ServerConfig& cfg);
-	static Response makeFromCgi(const std::string& rawCgiOutput);
+	static Response makeFromCgi(const std::string& rawCgiOutput, const ServerConfig& cfg);
 
 private:
 	ResponseFactory();

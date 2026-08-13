@@ -3,12 +3,8 @@
 #include "http/PathResolver.hpp"
 #include "http/ResponseFactory.hpp"
 #include "common/HttpStatus.hpp"
+#include "common/StringUtils.hpp"
 #include <sys/stat.h>
-
-
-static bool endsWithSlash(const std::string& s) {
-	return !s.empty() && s[s.size() - 1] == '/';
-}
 
 
 GetHandler::GetHandler() {}
@@ -28,8 +24,12 @@ Response GetHandler::handle(const Request& req,
 		return ResponseFactory::makeError(HTTP_NOT_FOUND, srv);
 	}
 	if (S_ISDIR(info.st_mode)) {
-		if (!endsWithSlash(req.path())) {
-			return ResponseFactory::makeRedirect(req.path() + "/", HTTP_MOVED_PERMANENTLY);
+		if (!StringUtils::endsWith(req.path(), "/")) {
+			std::string target = req.path() + "/";
+			if (!req.query().empty()) {
+				target += "?" + req.query();
+			}
+			return ResponseFactory::makeRedirect(target, HTTP_MOVED_PERMANENTLY);
 		}
 		return serveDirectory(fsPath, req.path(), loc, srv);
 	}

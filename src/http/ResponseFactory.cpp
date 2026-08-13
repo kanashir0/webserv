@@ -25,12 +25,18 @@ static int readRegularFile(const std::string& path, std::string& outContent) {
 	if (!in.is_open()) {
 		return HTTP_INTERNAL_SERVER_ERROR;
 	}
-	std::ostringstream buf;
-	buf << in.rdbuf();
-	if (in.bad()) {
-		return HTTP_INTERNAL_SERVER_ERROR;
+	// O stat() acima ja deu o tamanho: ler direto no buffer final evita as duas
+	// copias que um ostringstream intermediario custaria por arquivo servido.
+	outContent.resize(static_cast<std::size_t>(st.st_size));
+	if (st.st_size > 0) {
+		in.read(&outContent[0], static_cast<std::streamsize>(st.st_size));
+		if (in.bad()) {
+			outContent.clear();
+			return HTTP_INTERNAL_SERVER_ERROR;
+		}
+		// Arquivo encolheu entre o stat e o read: mantem so o que veio.
+		outContent.resize(static_cast<std::size_t>(in.gcount()));
 	}
-	outContent = buf.str();
 	return HTTP_OK;
 }
 
@@ -235,8 +241,13 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 
 	const std::string baseUri     = withTrailingSlash(uriPath);
 	const std::string escapedBase = escapeHtml(baseUri);
+	// Uma entrada rende ~60 bytes de <li>; reservar evita realocar a cada item
+	// em diretorios grandes.
+	const std::size_t estimatedSize = 512 + entryNames.size() * 96;
 
-	std::string page =
+	std::string page;
+	page.reserve(estimatedSize);
+	page +=
 		"<!DOCTYPE html>\r\n"
 		"<html>\r\n"
 		"<head>\r\n"
@@ -276,7 +287,7 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 
 // RFC 3875 §6: saida CGI = headers, linha em branco, body. O terminador pode
 // ser \r\n\r\n ou \n\n dependendo do script; aceitamos os dois.
-Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
+Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput, const ServerConfig& cfg) {
 	std::string::size_type headerEnd = rawCgiOutput.find("\r\n\r\n");
 	std::string::size_type bodyStart;
 	std::string            lineSep;
@@ -287,7 +298,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
 		headerEnd = rawCgiOutput.find("\n\n");
 		if (headerEnd == std::string::npos) {
 			LOG_ERROR("makeFromCgi: saida CGI sem separador de headers");
-			return Response(HTTP_BAD_GATEWAY);
+			return makeError(HTTP_BAD_GATEWAY, cfg);
 		}
 		bodyStart = headerEnd + 2;
 		lineSep   = "\n";
@@ -308,7 +319,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
 		std::string::size_type colon = line.find(':');
 		if (colon == std::string::npos || colon == 0) {
 			LOG_WARN("makeFromCgi: header CGI malformado: \"" + line + "\"");
-			return Response(HTTP_BAD_GATEWAY);
+			return makeError(HTTP_BAD_GATEWAY, cfg);
 		}
 		std::string name  = StringUtils::trim(line.substr(0, colon));
 		std::string value = StringUtils::trim(line.substr(colon + 1));
@@ -319,7 +330,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
 			long code = StringUtils::toLong(value.substr(0, value.find(' ')), ok);
 			if (!ok || code < 100 || code > 599) {
 				LOG_WARN("makeFromCgi: Status CGI invalido: \"" + value + "\"");
-				return Response(HTTP_BAD_GATEWAY);
+				return makeError(HTTP_BAD_GATEWAY, cfg);
 			}
 			resp.setStatus(static_cast<int>(code));
 		} else {

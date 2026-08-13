@@ -12,12 +12,23 @@
 
 class SessionStore;
 
+// Preenchido por route() quando a requisicao cai num script CGI. Nesse caso a
+// Response devolvida nao vale nada: quem chama deve iniciar um CgiHandler.
+struct CgiTarget {
+	const LocationConfig* loc;
+	std::string           interpreter;
+	std::string           scriptPath;
+
+	CgiTarget();
+	bool active() const;
+};
+
 class Router {
 public:
 	Router(SessionStore& sessions);
 	~Router();
 
-	Response route(const Request& req, const ServerConfig& vhost);
+	Response route(const Request& req, const ServerConfig& vhost, CgiTarget& cgi);
 
 private:
 	SessionStore& sessions_;
@@ -26,7 +37,12 @@ private:
 	PostHandler   postH_;
 	DeleteHandler deleteH_;
 
-	bool methodAllowed(const std::string& method, const LocationConfig& loc) const;
+	bool     methodAllowed(const std::string& method, const LocationConfig& loc) const;
+	Response prepareCgi(const Request& req,
+	                    const LocationConfig& loc,
+	                    const ServerConfig& vhost,
+	                    const std::string& interpreter,
+	                    CgiTarget& cgi);
 	void attachSessionCookie(const Request& req, Response& resp);
 
 	Router(const Router&);

@@ -3,6 +3,8 @@ webserv
 *.o
 *.d
 *.a
+valgrind.log
+.siege-urls.txt
 *.swp
 .DS_Store
 .vscode/

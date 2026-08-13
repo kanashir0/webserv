@@ -27,6 +27,7 @@ private:
 	           const LocationConfig& loc,
 	           const ServerConfig& srv,
 	           const std::string& scriptPath);
+	void add(const std::string& name, const std::string& value);
 
 	CgiEnv(const CgiEnv&);
 	CgiEnv& operator=(const CgiEnv&);

@@ -64,11 +64,20 @@ static bool normalizePath(const std::string& path, std::string& out) {
 	return true;
 }
 
-static std::string stripLocationPrefix(const std::string& path, const std::string& locPath) {
-	std::string prefix = locPath;
-	if (prefix.size() > 1 && prefix[prefix.size() - 1] == '/') {
-		prefix.erase(prefix.size() - 1);
+std::string PathResolver::basename(const std::string& path) {
+	std::string::size_type cut = path.find_last_of("/\\");
+	return cut == std::string::npos ? path : path.substr(cut + 1);
+}
+
+std::string PathResolver::stripTrailingSlash(const std::string& path) {
+	if (path.size() > 1 && path[path.size() - 1] == '/') {
+		return path.substr(0, path.size() - 1);
 	}
+	return path;
+}
+
+static std::string stripLocationPrefix(const std::string& path, const std::string& locPath) {
+	std::string prefix = PathResolver::stripTrailingSlash(locPath);
 	if (prefix.empty() || prefix == "/" || path.compare(0, prefix.size(), prefix) != 0) {
 		return path;
 	}
@@ -106,10 +115,7 @@ std::string PathResolver::joinPath(const std::string& root, const std::string& r
 	if (root.empty()) {
 		return rel;
 	}
-	std::string base = root;
-	if (base.size() > 1 && base[base.size() - 1] == '/') {
-		base.erase(base.size() - 1);
-	}
+	std::string base = stripTrailingSlash(root);
 	if (!rel.empty() && rel[0] == '/') {
 		return base + rel;
 	}

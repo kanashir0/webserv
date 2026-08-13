@@ -39,9 +39,8 @@ int Socket::acceptConnection() {
 
 	int client_fd = accept(fd(), (sockaddr*)&client, &clientlen);
 	if (client_fd < 0) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
-			return -1;
-		LOG_WARN(strerror(errno));
+		// Fila de conexoes vazia ou accept falhou: nos dois casos o unico
+		// desfecho e parar o laco de accept, entao errno nao e consultado.
 		return -1;
 	}
 

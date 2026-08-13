@@ -39,7 +39,8 @@ void  ListeningSocket::onReadable() {
 			client_fd,
 			vhosts_,
 			router_,
-			sessions_
+			sessions_,
+			loop_
 		);
 
 		loop_.add(client);
