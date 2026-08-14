@@ -56,12 +56,12 @@ void EventLoop::runOnce(int timeoutMs, int timeoutSec) {
 		IPollable* p = pollables_[i];
 		short revents = fds[i].revents;
 
+		if (revents & POLLIN)
+			p->onReadable();
+		if (revents & POLLOUT)
+			p->onWritable();
 		if (revents & (POLLHUP | POLLERR))
 			p->onHangup();
-		else if (revents & POLLIN)
-			p->onReadable();
-		else if (revents & POLLOUT)
-			p->onWritable();
 	}
 }
 
