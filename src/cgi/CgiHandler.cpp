@@ -183,7 +183,7 @@ void CgiHandler::onReadable() {
 		return;
 	}
 	if (readChunk() <= 0) {
-		deliver(ResponseFactory::makeFromCgi(output_, srv_));
+		deliver(ResponseFactory::makeFromCgi(output_, srv_, &loc_));
 	}
 }
 
@@ -197,7 +197,7 @@ void CgiHandler::onHangup() {
 	if (phase_ == READING_OUTPUT && readChunk() > 0) {
 		return;
 	}
-	deliver(ResponseFactory::makeFromCgi(output_, srv_));
+	deliver(ResponseFactory::makeFromCgi(output_, srv_, &loc_));
 }
 
 void CgiHandler::checkTimeout(std::time_t now, std::time_t /*timeout*/) {
@@ -205,7 +205,7 @@ void CgiHandler::checkTimeout(std::time_t now, std::time_t /*timeout*/) {
 		return;
 	}
 	LOG_ERROR("CgiHandler: timeout em \"" + scriptPath_ + "\"");
-	deliver(ResponseFactory::makeError(HTTP_GATEWAY_TIMEOUT, srv_));
+	deliver(ResponseFactory::makeError(HTTP_GATEWAY_TIMEOUT, srv_, &loc_));
 }
 
 bool CgiHandler::wantsClose() const {

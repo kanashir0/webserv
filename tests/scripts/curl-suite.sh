@@ -147,6 +147,17 @@ check "GET do upload"        "200" curl_status "http://$HOST/upload/big.bin"
 check "DELETE do upload"     "204" curl_status -X DELETE "http://$HOST/upload/big.bin"
 rm -f "$BIG2M" "$BIG11M"
 
+# --- heranca de configuracao server -> location -------------------------
+# error_page: a location /upload declara a sua e vence a do server.
+check "error_page do server"   "404 Not Found" sh -c \
+	"curl -s --max-time 10 'http://$HOST/nope' | grep -oE '<h1>[^<]*' | head -1 | cut -c5-"
+check "error_page da location" "404 &mdash; No such upload" sh -c \
+	"curl -s --max-time 10 'http://$HOST/upload/nope' | grep -oE '<h1>[^<]*' | head -1 | cut -c5-"
+
+# autoindex: o server declara off; /files sobrescreve com on, / herda.
+check "autoindex herdado (off)" "403" curl_status "http://$HOST/errors/"
+check "autoindex override (on)" "200" curl_status "http://$HOST/files/"
+
 # --- requisicoes malformadas (nao podem derrubar o servidor) ------------
 check "request invalida"  "400" sh -c \
 	"printf 'GARBAGE\r\n\r\n' | timeout 3 nc ${HOST%%:*} ${HOST##*:} | head -1 | cut -d' ' -f2"

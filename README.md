@@ -84,15 +84,17 @@ server {
     server_name   localhost;        # used for virtual hosting
     root          ./www;            # document root
     index         index.html;       # file served for a directory
-    client_max_body_size 1m;        # accepts k / m / g suffixes
+    autoindex     off;              # default for locations below
+    client_max_body_size 1m;        # accepts k / m / g suffixes; 0 = unlimited
 
     error_page 404 /errors/404.html;
 
     location /upload {
         methods GET POST DELETE;    # allowed methods for this route
         upload_store ./www/uploads; # where uploaded files are written
-        autoindex on;               # generate a listing for directories
+        autoindex on;               # overrides the server-level default
         client_max_body_size 10m;   # overrides the server-wide limit
+        error_page 404 /errors/upload-404.html;   # route-specific error page
     }
 
     location /old {
@@ -107,6 +109,11 @@ server {
 }
 ```
 
+`root`, `index`, `autoindex`, `client_max_body_size` and `error_page` may appear
+at both levels: a location that omits one inherits the server's value, and one
+that declares it wins. `listen` and `server_name` are server-only; `methods`,
+`return`, `cgi` and `upload_store` are location-only.
+
 Directives are validated at startup. Anything wrong — an unknown directive, a
 duplicated one, a port out of range, a missing directory, an unsupported method
 — aborts the launch with the offending file and line number:
@@ -119,7 +126,7 @@ Ready-made configurations live in `conf/`:
 
 - `conf/default.conf` — the full demo described above
 - `conf/valid/` — minimal, multi-site and CGI-error setups
-- `conf/invalid/` — 25 broken files, one per validation rule, each of which must
+- `conf/invalid/` — 26 broken files, one per validation rule, each of which must
   be rejected at startup
 
 ### Sessions and cookies (bonus)

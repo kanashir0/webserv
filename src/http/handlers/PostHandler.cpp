@@ -163,18 +163,18 @@ Response PostHandler::handleUpload(const Request& req,
 		// Erro de configuracao, nao do servidor: sem destino de upload o POST
 		// e proibido nesta location — 403 e mais preciso que 500.
 		LOG_ERROR("PostHandler: location \"" + loc.path + "\" sem upload_store");
-		return ResponseFactory::makeError(HTTP_FORBIDDEN, srv);
+		return ResponseFactory::makeError(HTTP_FORBIDDEN, srv, &loc);
 	}
 	struct stat info;
 	if (stat(loc.uploadStore.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) ||
 	    access(loc.uploadStore.c_str(), W_OK | X_OK) != 0) {
 		LOG_ERROR("PostHandler: upload_store inacessivel: \"" + loc.uploadStore + "\"");
-		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv);
+		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv, &loc);
 	}
 
 	std::string decodedPath;
 	if (!PathResolver::percentDecode(req.path(), decodedPath)) {
-		return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv);
+		return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv, &loc);
 	}
 
 	std::string       filename;
@@ -190,7 +190,7 @@ Response PostHandler::handleUpload(const Request& req,
 		if (!extractBoundary(contentType, lowerContentType, boundary) ||
 		    !firstMultipartPart(req.body(), boundary, filename, extracted)) {
 			LOG_WARN("PostHandler: multipart/form-data malformado");
-			return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv);
+			return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv, &loc);
 		}
 		content = &extracted;
 	}
@@ -206,7 +206,7 @@ Response PostHandler::handleUpload(const Request& req,
 	const std::string dest = PathResolver::joinPath(loc.uploadStore, filename);
 	if (!writeFile(dest, *content)) {
 		LOG_ERROR("PostHandler: falha ao gravar \"" + dest + "\"");
-		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv);
+		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv, &loc);
 	}
 
 	std::string publicBase = loc.path;

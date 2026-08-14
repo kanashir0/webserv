@@ -66,7 +66,7 @@ Response Router::route(const Request& req, const ServerConfig& vhost, CgiTarget&
 			return ResponseFactory::makeRedirect(loc->redirect, loc->redirectCode);
 		}
 		if (!methodAllowed(req.method(), *loc)) {
-			Response r = ResponseFactory::makeError(HTTP_METHOD_NOT_ALLOWED, vhost);
+			Response r = ResponseFactory::makeError(HTTP_METHOD_NOT_ALLOWED, vhost, loc);
 			r.setHeader("Allow", allowHeaderFor(*loc));
 			return r;
 		}
@@ -92,7 +92,7 @@ Response Router::route(const Request& req, const ServerConfig& vhost, CgiTarget&
 		if (req.method() == "DELETE") {
 			return deleteH_.handle(req, *loc, vhost);
 		}
-		Response r = ResponseFactory::makeError(HTTP_METHOD_NOT_ALLOWED, vhost);
+		Response r = ResponseFactory::makeError(HTTP_METHOD_NOT_ALLOWED, vhost, loc);
 		r.setHeader("Allow", "GET, POST, DELETE");
 		return r;
 	} catch (const std::exception& e) {
@@ -113,15 +113,15 @@ Response Router::prepareCgi(const Request& req,
 	std::string fsPath;
 	int         status = PathResolver::resolve(req.path(), loc, vhost, fsPath);
 	if (status != HTTP_OK) {
-		return ResponseFactory::makeError(status, vhost);
+		return ResponseFactory::makeError(status, vhost, &loc);
 	}
 
 	struct stat info;
 	if (stat(fsPath.c_str(), &info) != 0) {
-		return ResponseFactory::makeError(HTTP_NOT_FOUND, vhost);
+		return ResponseFactory::makeError(HTTP_NOT_FOUND, vhost, &loc);
 	}
 	if (!S_ISREG(info.st_mode)) {
-		return ResponseFactory::makeError(HTTP_FORBIDDEN, vhost);
+		return ResponseFactory::makeError(HTTP_FORBIDDEN, vhost, &loc);
 	}
 
 	cgi.loc         = &loc;

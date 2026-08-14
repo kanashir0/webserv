@@ -62,12 +62,30 @@ static const std::string* findRootForUri(const std::string& uriPath, const Serve
 	return bestRoot;
 }
 
-static bool loadConfiguredErrorPage(int code, const ServerConfig& cfg, std::string& outBody) {
+// A error_page da location vence a do server; se a location nao definir aquele
+// codigo, cai para a do server.
+static const std::string* findErrorPageUri(int code, const ServerConfig& cfg,
+                                           const LocationConfig* loc) {
+	if (loc != 0) {
+		std::map<int, std::string>::const_iterator it = loc->errorPages.find(code);
+		if (it != loc->errorPages.end() && !it->second.empty()) {
+			return &it->second;
+		}
+	}
 	std::map<int, std::string>::const_iterator it = cfg.errorPages.find(code);
-	if (it == cfg.errorPages.end() || it->second.empty()) {
+	if (it != cfg.errorPages.end() && !it->second.empty()) {
+		return &it->second;
+	}
+	return 0;
+}
+
+static bool loadConfiguredErrorPage(int code, const ServerConfig& cfg,
+                                    const LocationConfig* loc, std::string& outBody) {
+	const std::string* configured = findErrorPageUri(code, cfg, loc);
+	if (configured == 0) {
 		return false;
 	}
-	const std::string& pageUri = it->second;
+	const std::string& pageUri = *configured;
 
 	const std::string* root = findRootForUri(pageUri, cfg);
 	if (root != 0 && readRegularFile(PathResolver::joinPath(*root, pageUri), outBody) == HTTP_OK &&
@@ -103,9 +121,10 @@ static Response buildErrorResponse(int code, const std::string& body) {
 	return r;
 }
 
-Response ResponseFactory::makeError(int code, const ServerConfig& cfg) {
+Response ResponseFactory::makeError(int code, const ServerConfig& cfg,
+                                    const LocationConfig* loc) {
 	std::string body;
-	if (!loadConfiguredErrorPage(code, cfg, body)) {
+	if (!loadConfiguredErrorPage(code, cfg, loc, body)) {
 		body = makeBuiltinErrorPage(code);
 	}
 	return buildErrorResponse(code, body);
@@ -136,13 +155,14 @@ Response ResponseFactory::makeRedirect(const std::string& url, int code) {
 
 Response ResponseFactory::makeFile(const std::string& fsPath,
                                    const std::string& mime,
-                                   const ServerConfig& cfg) {
+                                   const ServerConfig& cfg,
+                                   const LocationConfig* loc) {
 	std::string fileContent;
 	int status = readRegularFile(fsPath, fileContent);
 	if (status != HTTP_OK) {
 		LOG_DEBUG("makeFile: " + StringUtils::toString(static_cast<long>(status)) +
 		          " para \"" + fsPath + "\"");
-		return makeError(status, cfg);
+		return makeError(status, cfg, loc);
 	}
 	Response r(HTTP_OK);
 	if (!mime.empty()) {
@@ -190,17 +210,18 @@ static bool isDirectoryEntry(const std::string& parentPath, const std::string& e
 
 Response ResponseFactory::makeAutoindex(const std::string& fsPath,
                                         const std::string& uriPath,
-                                        const ServerConfig& cfg) {
+                                        const ServerConfig& cfg,
+                                        const LocationConfig* loc) {
 	int status = classifyDirectory(fsPath);
 	if (status != HTTP_OK) {
 		LOG_DEBUG("makeAutoindex: " + StringUtils::toString(static_cast<long>(status)) +
 		          " para \"" + fsPath + "\"");
-		return makeError(status, cfg);
+		return makeError(status, cfg, loc);
 	}
 	DIR* directory = opendir(fsPath.c_str());
 	if (directory == 0) {
 		LOG_ERROR("makeAutoindex: opendir falhou em \"" + fsPath + "\"");
-		return makeError(HTTP_INTERNAL_SERVER_ERROR, cfg);
+		return makeError(HTTP_INTERNAL_SERVER_ERROR, cfg, loc);
 	}
 
 	StringVec entryNames;
@@ -265,7 +286,8 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 
 // RFC 3875 §6: saida CGI = headers, linha em branco, body. O terminador pode
 // ser \r\n\r\n ou \n\n dependendo do script; aceitamos os dois.
-Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput, const ServerConfig& cfg) {
+Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput, const ServerConfig& cfg,
+                                      const LocationConfig* loc) {
 	std::string::size_type headerEnd = rawCgiOutput.find("\r\n\r\n");
 	std::string::size_type bodyStart;
 	std::string            lineSep;
@@ -276,7 +298,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput, const Ser
 		headerEnd = rawCgiOutput.find("\n\n");
 		if (headerEnd == std::string::npos) {
 			LOG_ERROR("makeFromCgi: saida CGI sem separador de headers");
-			return makeError(HTTP_BAD_GATEWAY, cfg);
+			return makeError(HTTP_BAD_GATEWAY, cfg, loc);
 		}
 		bodyStart = headerEnd + 2;
 		lineSep   = "\n";
@@ -297,7 +319,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput, const Ser
 		std::string::size_type colon = line.find(':');
 		if (colon == std::string::npos || colon == 0) {
 			LOG_WARN("makeFromCgi: header CGI malformado: \"" + line + "\"");
-			return makeError(HTTP_BAD_GATEWAY, cfg);
+			return makeError(HTTP_BAD_GATEWAY, cfg, loc);
 		}
 		std::string name  = StringUtils::trim(line.substr(0, colon));
 		std::string value = StringUtils::trim(line.substr(colon + 1));
@@ -308,7 +330,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput, const Ser
 			long code = StringUtils::toLong(value.substr(0, value.find(' ')), ok);
 			if (!ok || code < 100 || code > 599) {
 				LOG_WARN("makeFromCgi: Status CGI invalido: \"" + value + "\"");
-				return makeError(HTTP_BAD_GATEWAY, cfg);
+				return makeError(HTTP_BAD_GATEWAY, cfg, loc);
 			}
 			resp.setStatus(static_cast<int>(code));
 		} else {

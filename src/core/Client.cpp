@@ -149,13 +149,14 @@ const ServerConfig& Client::matchVirtualHost(const Request& req) const {
 	return vhosts_.front();
 }
 
-// Limite efetivo de body: o da location (se definida e com override) vence o
-// do server. clientMaxBodySize == 0 na location significa "herda do server".
+// Limite efetivo de body: o da location vence o do server quando a diretiva
+// aparece nela. Em ambos os niveis 0 significa "sem limite", coerente com o
+// que o RequestParser faz com maxBody == 0.
 std::size_t Client::effectiveBodyLimit(const Request& req) const {
 	const ServerConfig&   vhost = matchVirtualHost(req);
 	const LocationConfig* loc   = vhost.findLocation(req.path());
 
-	if (loc != 0 && loc->clientMaxBodySize != 0)
+	if (loc != 0 && loc->clientMaxBodySizeSet)
 		return loc->clientMaxBodySize;
 	return vhost.clientMaxBodySize;
 }

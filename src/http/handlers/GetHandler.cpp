@@ -16,12 +16,12 @@ Response GetHandler::handle(const Request& req,
 	std::string fsPath;
 	int         status = PathResolver::resolve(req.path(), loc, srv, fsPath);
 	if (status != HTTP_OK) {
-		return ResponseFactory::makeError(status, srv);
+		return ResponseFactory::makeError(status, srv, &loc);
 	}
 
 	struct stat info;
 	if (stat(fsPath.c_str(), &info) != 0) {
-		return ResponseFactory::makeError(HTTP_NOT_FOUND, srv);
+		return ResponseFactory::makeError(HTTP_NOT_FOUND, srv, &loc);
 	}
 	if (S_ISDIR(info.st_mode)) {
 		if (!StringUtils::endsWith(req.path(), "/")) {
@@ -34,13 +34,15 @@ Response GetHandler::handle(const Request& req,
 		return serveDirectory(fsPath, req.path(), loc, srv);
 	}
 	if (!S_ISREG(info.st_mode)) {
-		return ResponseFactory::makeError(HTTP_FORBIDDEN, srv);
+		return ResponseFactory::makeError(HTTP_FORBIDDEN, srv, &loc);
 	}
-	return serveFile(fsPath, srv);
+	return serveFile(fsPath, loc, srv);
 }
 
-Response GetHandler::serveFile(const std::string& fsPath, const ServerConfig& srv) {
-	return ResponseFactory::makeFile(fsPath, MimeTypes::fromPath(fsPath), srv);
+Response GetHandler::serveFile(const std::string& fsPath,
+                               const LocationConfig& loc,
+                               const ServerConfig& srv) {
+	return ResponseFactory::makeFile(fsPath, MimeTypes::fromPath(fsPath), srv, &loc);
 }
 
 Response GetHandler::serveDirectory(const std::string& fsPath,
@@ -52,11 +54,13 @@ Response GetHandler::serveDirectory(const std::string& fsPath,
 		std::string indexPath = PathResolver::joinPath(fsPath, index);
 		struct stat info;
 		if (stat(indexPath.c_str(), &info) == 0 && S_ISREG(info.st_mode)) {
-			return serveFile(indexPath, srv);
+			return serveFile(indexPath, loc, srv);
 		}
 	}
-	if (loc.autoindex) {
-		return ResponseFactory::makeAutoindex(fsPath, uriPath, srv);
+	// Sem a diretiva na location vale o default do server.
+	const bool autoindex = loc.autoindexSet ? loc.autoindex : srv.autoindex;
+	if (autoindex) {
+		return ResponseFactory::makeAutoindex(fsPath, uriPath, srv, &loc);
 	}
-	return ResponseFactory::makeError(HTTP_FORBIDDEN, srv);
+	return ResponseFactory::makeError(HTTP_FORBIDDEN, srv, &loc);
 }

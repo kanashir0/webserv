@@ -40,6 +40,22 @@ static void requireDirectory(const std::string& directive, const std::string& pa
 			directive + " is not an existing directory: '" + path + "'", line);
 }
 
+// Compartilhado entre server e location: as duas diretivas valem nos dois niveis.
+static bool parseAutoindex(const std::string& arg, std::size_t line) {
+	if (arg == "on")  return true;
+	if (arg == "off") return false;
+	throw ConfigParser::ParseError(
+		"autoindex expects 'on' or 'off', got '" + arg + "'", line);
+}
+
+// error_page 404 500 /pagina.html  ->  o ultimo argumento e a pagina.
+static void parseErrorPages(const StringVec& args, std::map<int, std::string>& out,
+                            std::size_t line) {
+	const std::string& page = args[args.size() - 1];
+	for (std::size_t i = 0; i + 1 < args.size(); ++i)
+		out[parseStatusCode(args[i], line)] = page;
+}
+
 static void parseListen(const std::string& arg, ServerConfig& srv, std::size_t line) {
 	std::string portPart = arg;
 
@@ -255,15 +271,17 @@ ServerConfig ConfigParser::parseServerBlock() {
 			markUnique(seen, tok);
 			requireArgCount(tok, args, 1, 1, line_);
 			srv.index = args[0];
+		} else if (tok == "autoindex") {
+			markUnique(seen, tok);
+			requireArgCount(tok, args, 1, 1, line_);
+			srv.autoindex = parseAutoindex(args[0], line_);
 		} else if (tok == "client_max_body_size") {
 			markUnique(seen, tok);
 			requireArgCount(tok, args, 1, 1, line_);
 			srv.clientMaxBodySize = parseSize(args[0], line_);
 		} else if (tok == "error_page") {
 			requireArgCount(tok, args, 2, 0, line_);
-			const std::string& page = args[args.size() - 1];
-			for (std::size_t i = 0; i + 1 < args.size(); ++i)
-				srv.errorPages[parseStatusCode(args[i], line_)] = page;
+			parseErrorPages(args, srv.errorPages, line_);
 		} else {
 			throw ParseError("unknown directive '" + tok + "' in server block", line_);
 		}
@@ -311,12 +329,11 @@ LocationConfig ConfigParser::parseLocationBlock() {
 		} else if (tok == "autoindex") {
 			markUnique(seen, tok);
 			requireArgCount(tok, args, 1, 1, line_);
-			if (args[0] == "on")
-				loc.autoindex = true;
-			else if (args[0] == "off")
-				loc.autoindex = false;
-			else
-				throw ParseError("autoindex expects 'on' or 'off', got '" + args[0] + "'", line_);
+			loc.autoindex    = parseAutoindex(args[0], line_);
+			loc.autoindexSet = true;
+		} else if (tok == "error_page") {
+			requireArgCount(tok, args, 2, 0, line_);
+			parseErrorPages(args, loc.errorPages, line_);
 		} else if (tok == "return") {
 			markUnique(seen, tok);
 			requireArgCount(tok, args, 1, 2, line_);
@@ -341,7 +358,8 @@ LocationConfig ConfigParser::parseLocationBlock() {
 		} else if (tok == "client_max_body_size") {
 			markUnique(seen, tok);
 			requireArgCount(tok, args, 1, 1, line_);
-			loc.clientMaxBodySize = parseSize(args[0], line_);
+			loc.clientMaxBodySize    = parseSize(args[0], line_);
+			loc.clientMaxBodySizeSet = true;
 		} else if (tok == "cgi") {
 			requireArgCount(tok, args, 2, 2, line_);
 			if (args[0].empty() || args[0][0] != '.')

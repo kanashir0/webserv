@@ -162,8 +162,38 @@ de hostname, diretiva duplicada no mesmo bloco, `location` com path repetido, ex
 Cada regra tem um arquivo correspondente em `conf/invalid/` — ao adicionar uma
 validação nova, adicione também o `.conf` que a dispara.
 
+### Herança server → location
+
+| Diretiva | server | location | Como a location herda |
+|----------|--------|----------|----------------------|
+| `root`, `index` | ✅ | ✅ | string vazia na location = herda |
+| `autoindex` | ✅ | ✅ | `autoindexSet == false` = herda |
+| `client_max_body_size` | ✅ | ✅ | `clientMaxBodySizeSet == false` = herda |
+| `error_page` | ✅ | ✅ | mapa vazio (ou código ausente) = herda |
+| `listen`, `server_name` | ✅ | ❌ | — |
+| `methods`, `return`, `cgi`, `upload_store` | ❌ | ✅ | — |
+
+`false` e `0` são valores legítimos, então quem não tem sentinela natural carrega
+um booleano `...Set`. **`client_max_body_size 0` significa "sem limite" nos dois
+níveis** — igual ao que o `RequestParser` faz com `maxBody == 0`. Não reintroduza
+a semântica antiga de "0 = herda": ela tornava impossível configurar ilimitado.
+
+A `error_page` da location chega ao `ResponseFactory` pelo parâmetro opcional
+`const LocationConfig* loc` de `makeError`/`makeFile`/`makeAutoindex`/`makeFromCgi`.
+Passe `&loc` sempre que houver uma location resolvida; `0` só quando genuinamente
+não há (404 sem location casada, erro de parsing, catch-all de exceção).
+
 - `findLocation()` usa **longest-prefix match** (comportamento Nginx)
 - Virtual hosting: múltiplos `server {}` na mesma porta compartilham um único `ListeningSocket`; o `Client` seleciona o vhost pelo header `Host`
+
+## Dívida técnica conhecida
+
+- **`ConfigParser` usa cadeia de `if/else if`** para despachar diretivas, em vez
+  de uma tabela `std::map<std::string, Setter>` com ponteiro-para-membro (como o
+  projeto de referência 42-webserv). Avaliado e adiado deliberadamente antes da
+  entrega: são ~14 funções-membro novas mais dois mapas, contra 141 linhas que
+  funcionam e têm 26 configs inválidos cobrindo cada validação. Ganho funcional
+  zero. Só vale mexer depois da defesa.
 
 ## Branches de desenvolvimento
 
