@@ -8,6 +8,12 @@
 #include <sys/stat.h>
 
 
+// Rota interna do bonus de sessoes. Nao existe em disco: o Router a intercepta
+// antes de despachar para os handlers de metodo.
+static const char* const kSessionPath   = "/session";
+static const char* const kSessionCookie = "sid";
+
+
 CgiTarget::CgiTarget() : loc(0), interpreter(), scriptPath() {}
 
 bool CgiTarget::active() const { return loc != 0; }
@@ -63,6 +69,10 @@ Response Router::route(const Request& req, const ServerConfig& vhost, CgiTarget&
 			Response r = ResponseFactory::makeError(HTTP_METHOD_NOT_ALLOWED, vhost);
 			r.setHeader("Allow", allowHeaderFor(*loc));
 			return r;
+		}
+		// Bonus: rota interna, servida sem tocar no disco.
+		if (req.path() == kSessionPath) {
+			return handleSession(req);
 		}
 		// O CGI atende qualquer metodo permitido na location, entao a checagem
 		// vem antes do despacho por metodo.
@@ -132,6 +142,51 @@ bool Router::methodAllowed(const std::string& method, const LocationConfig& loc)
 	return false;
 }
 
-void Router::attachSessionCookie(const Request& /*req*/, Response& /*resp*/) {
-	// TODO Membro 3 (bonus): so com a parte obrigatoria fechada
+// Demonstracao do bonus de cookies/sessao: conta visitas por cliente. O estado
+// vive no SessionStore (server-side); o browser so carrega o identificador.
+Response Router::handleSession(const Request& req) {
+	const std::string incoming = req.cookie(kSessionCookie);
+	Session*          existing = incoming.empty() ? 0 : sessions_.find(incoming);
+	const bool        isNew    = (existing == 0);
+
+	// Cookie ausente, desconhecido ou ja expirado pelo GC: comeca de novo.
+	Session& session = isNew ? sessions_.getOrCreate("") : *existing;
+	if (!isNew) {
+		session.touch(sessions_.ttlSeconds());
+	}
+
+	bool ok    = false;
+	long visits = StringUtils::toLong(session.get("visits"), ok);
+	visits = (ok ? visits : 0) + 1;
+	session.set("visits", StringUtils::toString(visits));
+
+	const std::string visitsText = StringUtils::toString(visits);
+	std::string body =
+		"<!DOCTYPE html>\r\n"
+		"<html lang=\"en\">\r\n"
+		"<head>\r\n"
+		"<meta charset=\"utf-8\">\r\n"
+		"<title>Session demo</title>\r\n"
+		"<link rel=\"stylesheet\" href=\"/style.css\">\r\n"
+		"</head>\r\n"
+		"<body>\r\n"
+		"<h1>Session demo</h1>\r\n"
+		"<p>Session id: <code>" + session.id() + "</code></p>\r\n"
+		"<p>This is visit number <strong>" + visitsText + "</strong>.</p>\r\n"
+		"<p>" + std::string(isNew
+			? "A new session was created and sent to you as a cookie."
+			: "Your browser sent an existing session cookie back.") + "</p>\r\n"
+		"<p>Reload the page to see the counter go up, or clear the "
+		"<code>sid</code> cookie to start a new session.</p>\r\n"
+		"<p><a href=\"/\">Back to the index</a></p>\r\n"
+		"</body>\r\n"
+		"</html>\r\n";
+
+	Response resp(HTTP_OK);
+	resp.setHeader("Content-Type", "text/html; charset=utf-8");
+	if (isNew) {
+		resp.setCookie(kSessionCookie, session.id(), "Path=/; HttpOnly");
+	}
+	resp.setBody(body);
+	return resp;
 }

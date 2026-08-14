@@ -152,28 +152,6 @@ Response ResponseFactory::makeFile(const std::string& fsPath,
 	return r;
 }
 
-static std::string escapeHtml(const std::string& text) {
-	std::string escaped;
-	escaped.reserve(text.size());
-	for (std::string::size_type i = 0; i < text.size(); ++i) {
-		char c = text[i];
-		if (c == '&') {
-			escaped += "&amp;";
-		} else if (c == '<') {
-			escaped += "&lt;";
-		} else if (c == '>') {
-			escaped += "&gt;";
-		} else if (c == '"') {
-			escaped += "&quot;";
-		} else if (c == '\'') {
-			escaped += "&#39;";
-		} else {
-			escaped += c;
-		}
-	}
-	return escaped;
-}
-
 static std::string withTrailingSlash(const std::string& uriPath) {
 	if (uriPath.empty()) {
 		return "/";
@@ -240,7 +218,7 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 	std::sort(entryNames.begin(), entryNames.end());
 
 	const std::string baseUri     = withTrailingSlash(uriPath);
-	const std::string escapedBase = escapeHtml(baseUri);
+	const std::string escapedBase = StringUtils::escapeHtml(baseUri);
 	// Uma entrada rende ~60 bytes de <li>; reservar evita realocar a cada item
 	// em diretorios grandes.
 	const std::size_t estimatedSize = 512 + entryNames.size() * 96;
@@ -260,7 +238,7 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 		"<ul>\r\n";
 
 	if (baseUri != "/") {
-		page += "<li><a href=\"" + escapeHtml(baseUri + "../") + "\">../</a></li>\r\n";
+		page += "<li><a href=\"" + StringUtils::escapeHtml(baseUri + "../") + "\">../</a></li>\r\n";
 	}
 	for (StringVec::const_iterator it = entryNames.begin(); it != entryNames.end(); ++it) {
 		const std::string& displayName = *it;
@@ -269,7 +247,7 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 			? displayName.substr(0, displayName.size() - 1)
 			: displayName;
 		std::string href = baseUri + PathResolver::encodeSegment(bareName) + (isDirectory ? "/" : "");
-		page += "<li><a href=\"" + escapeHtml(href) + "\">" + escapeHtml(displayName) + "</a></li>\r\n";
+		page += "<li><a href=\"" + StringUtils::escapeHtml(href) + "\">" + StringUtils::escapeHtml(displayName) + "</a></li>\r\n";
 	}
 
 	page +=

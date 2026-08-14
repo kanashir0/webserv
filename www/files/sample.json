@@ -1,0 +1,6 @@
+{
+  "project": "webserv",
+  "school": "42",
+  "language": "C++98",
+  "purpose": "static file served to check Content-Type detection"
+}

@@ -86,6 +86,10 @@ RequestParser::FeedResult RequestParser::feed(const char* data,
 		}
 
 		if (r != NEED_MORE)   return r;         // COMPLETE ou erro
+		// O limite de body depende de Host e path, que só existem agora que os
+		// headers acabaram: devolve o controle antes de tocar no body.
+		if (before == HEADER && (state_ == BODY_LENGTH || state_ == BODY_CHUNKED))
+			return HEADERS_READY;
 		if (state_ == before) return NEED_MORE; // não progrediu: faltam bytes
 	}
 }

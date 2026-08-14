@@ -15,8 +15,9 @@ make clean      # remove build/
 make fclean     # remove build/ e ./webserv
 make test       # compila e roda tests/scripts/curl-suite.sh
 
-./webserv conf/default.conf          # executa com config padrão
-./webserv tests/configs/basic.conf   # executa com config de teste
+./webserv conf/default.conf          # executa com config padrão (demo completa)
+./webserv conf/valid/basic.conf      # config mínima
+./webserv conf/invalid/qualquer.conf # deve falhar no startup com [ERROR] arquivo:linha:
 
 tests/scripts/run-siege.sh           # stress test (requer siege instalado)
 tests/scripts/run-valgrind.sh conf/default.conf   # detecta leaks de memória e FD
@@ -40,6 +41,7 @@ Nunca suprimir warnings. Parâmetros de funções stub são comentados (`/* para
 | **`fork()` somente para CGI** | Somente em `CgiHandler::start()` |
 | **Sem threads** | Todo o projeto é single-thread |
 | **`fcntl()` só com `F_SETFL`, `O_NONBLOCK`, `FD_CLOEXEC`** | `Socket::setNonBlocking()` e pipes do CGI — **`F_GETFL` é proibido**, use `fcntl(fd, F_SETFL, O_NONBLOCK)` direto |
+| **Só as funções externas da lista do subject** | `inet_pton`/`inet_addr` **não** estão na lista — use `StringUtils::parseIPv4()` |
 | **C++98 strict** | Sem `nullptr`, sem `auto`, sem range-for, sem `std::to_string`, sem smart pointers |
 
 ## Arquitetura
@@ -68,9 +70,21 @@ main() → ConfigParser → Server → EventLoop::run()
 
 ### State machine do `Client`
 
-`READING_HEADERS` → `READING_BODY` → `ROUTING` → `WRITING_RESPONSE` → `DONE`
+`READING_HEADERS` → (`WAITING_CGI`) → `WRITING_RESPONSE` → `DONE`
 
-O método `interest()` retorna `POLLIN` durante leitura e `POLLOUT` durante escrita — o `EventLoop` consulta isso a cada iteração.
+O método `interest()` retorna `POLLIN` em `READING_HEADERS`, `POLLOUT` em
+`WRITING_RESPONSE` e `0` nos demais — o `EventLoop` consulta isso a cada
+iteração. Com `interest() == 0` o `poll()` ainda reporta `POLLHUP`/`POLLERR`, que
+é como uma desconexão durante o CGI é detectada.
+
+### Limite de body: o parser pausa em `HEADERS_READY`
+
+`client_max_body_size` pode ser sobrescrito por location, mas a location só é
+conhecida depois de ler os headers. Por isso `RequestParser::feed()` devolve
+`HEADERS_READY` ao terminar os headers quando há body pela frente; o
+`Client::feedParser()` recalcula o limite com `effectiveBodyLimit()` e retoma o
+parse. **Nunca** calcule o limite antes do `feed()` — era exatamente esse o bug
+que fazia a location perder para o valor do server.
 
 ## Estrutura de módulos
 
@@ -139,9 +153,14 @@ server {
 ```
 
 Validações que falham já no startup (`[ERROR] arquivo.conf:linha: mensagem`): porta fora
-de 1–65535, `methods` diferente de GET/POST/DELETE, `autoindex` diferente de on/off,
-`return` com código diferente de 301/302, `upload_store` apontando para diretório
-inexistente, e `.conf` sem nenhum bloco `server`.
+de 1–65535, host que não seja IPv4 válido, `methods` diferente de GET/POST/DELETE,
+`autoindex` diferente de on/off, `return` com código diferente de 301/302 ou sem destino,
+`root`/`upload_store` apontando para diretório inexistente, `server_name` fora do charset
+de hostname, diretiva duplicada no mesmo bloco, `location` com path repetido, extensão
+`cgi` repetida, e `.conf` sem nenhum bloco `server`.
+
+Cada regra tem um arquivo correspondente em `conf/invalid/` — ao adicionar uma
+validação nova, adicione também o `.conf` que a dispara.
 
 - `findLocation()` usa **longest-prefix match** (comportamento Nginx)
 - Virtual hosting: múltiplos `server {}` na mesma porta compartilham um único `ListeningSocket`; o `Client` seleciona o vhost pelo header `Host`

@@ -74,8 +74,10 @@ private:
 	EventLoop&                       loop_;
 	CgiHandler*                      cgi_;   // pertence ao EventLoop, nao ao Client
 
-	const ServerConfig& matchVirtualHost() const;
-	void                buildErrorResponse(int code);
+	const ServerConfig& matchVirtualHost(const Request& req) const;
+	std::size_t         effectiveBodyLimit(const Request& req) const;
+	RequestParser::FeedResult feedParser(const char* data, std::size_t n);
+	void                buildErrorResponse(int code, const Request& req);
 	bool                tryConsumeResidual();
 	void                dispatch();
 	bool                willClose() const;

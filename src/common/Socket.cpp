@@ -19,8 +19,12 @@ void Socket::bindAndListen(const std::string& host, int port, int backlog) {
 	sockaddr_in addr;
 	std::memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	if (inet_pton(AF_INET, host.c_str(), &addr.sin_addr) != 1)
-		addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	// O host ja foi validado pelo ConfigParser, entao aqui nao ha fallback
+	// silencioso: um endereco invalido e erro de configuracao, nao de runtime.
+	unsigned long address = 0;
+	if (!StringUtils::parseIPv4(host, address))
+		throw std::runtime_error("invalid listen address: " + host);
+	addr.sin_addr.s_addr = htonl(static_cast<uint32_t>(address));
 	addr.sin_port = htons(port);
 
 	socklen_t addrlen = sizeof(addr);

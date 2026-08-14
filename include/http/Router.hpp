@@ -43,7 +43,8 @@ private:
 	                    const ServerConfig& vhost,
 	                    const std::string& interpreter,
 	                    CgiTarget& cgi);
-	void attachSessionCookie(const Request& req, Response& resp);
+	// Bonus: pagina de demonstracao de sessao servida pelo proprio servidor.
+	Response handleSession(const Request& req);
 
 	Router(const Router&);
 	Router& operator=(const Router&);

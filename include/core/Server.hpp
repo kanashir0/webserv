@@ -60,7 +60,6 @@ public:
 
 private:
 	std::vector<ServerConfig>                      configs_;
-	std::vector<ListeningSocket*>                  listeners_;
 	SessionStore                                   sessions_;
 	Router&                                        router_;
 	EventLoop                                      loop_;

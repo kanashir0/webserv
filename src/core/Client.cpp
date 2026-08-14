@@ -50,7 +50,7 @@ short Client::interest() const   {
 			return POLLOUT;
 
 		default:
-			return DONE;
+			return 0;
 	}
 }
 
@@ -67,7 +67,7 @@ void  Client::onReadable()       {
 		return;
 	}
 
-	RequestParser::FeedResult result = parser_.feed(buffer, ret, matchVirtualHost().clientMaxBodySize);
+	RequestParser::FeedResult result = feedParser(buffer, ret);
 
 	if (result == RequestParser::NEED_MORE)
 		return;
@@ -75,7 +75,7 @@ void  Client::onReadable()       {
 		request_ = parser_.take();
 		dispatch();
 	} else { // BAD_REQUEST, URI_TOO_LONG, BODY_TOO_LARGE, VERSION_UNSUPPORTED
-		buildErrorResponse(parser_.errorStatus());
+		buildErrorResponse(parser_.errorStatus(), parser_.current());
 		closeAfterWrite_ = true; // parser em estado de erro: sem keep-alive
 		state_ = WRITING_RESPONSE;
 	}
@@ -134,8 +134,8 @@ bool  Client::wantsClose() const { return wantsClose_; }
 Client::State Client::state() const          { return state_; }
 std::time_t   Client::lastActivity() const   { return lastActivity_; }
 
-const ServerConfig& Client::matchVirtualHost() const {
-	std::string hostPort = request_.header("Host");
+const ServerConfig& Client::matchVirtualHost(const Request& req) const {
+	std::string hostPort = req.header("Host");
 
 	std::string host = hostPort.substr(0, hostPort.find(":"));
 
@@ -149,14 +149,37 @@ const ServerConfig& Client::matchVirtualHost() const {
 	return vhosts_.front();
 }
 
-void Client::buildErrorResponse(int code) {
-	response_ = ResponseFactory::makeError(code, matchVirtualHost());
+// Limite efetivo de body: o da location (se definida e com override) vence o
+// do server. clientMaxBodySize == 0 na location significa "herda do server".
+std::size_t Client::effectiveBodyLimit(const Request& req) const {
+	const ServerConfig&   vhost = matchVirtualHost(req);
+	const LocationConfig* loc   = vhost.findLocation(req.path());
+
+	if (loc != 0 && loc->clientMaxBodySize != 0)
+		return loc->clientMaxBodySize;
+	return vhost.clientMaxBodySize;
+}
+
+// Alimenta o parser lidando com a pausa em HEADERS_READY: o limite de body so
+// pode ser calculado depois dos headers, entao o parse e retomado com ele.
+RequestParser::FeedResult Client::feedParser(const char* data, std::size_t n) {
+	RequestParser::FeedResult result =
+		parser_.feed(data, n, effectiveBodyLimit(parser_.current()));
+
+	while (result == RequestParser::HEADERS_READY) {
+		result = parser_.feed(NULL, 0, effectiveBodyLimit(parser_.current()));
+	}
+	return result;
+}
+
+void Client::buildErrorResponse(int code, const Request& req) {
+	response_ = ResponseFactory::makeError(code, matchVirtualHost(req));
 }
 
 // Roteia a requisicao ja completa. Quando o alvo e um script CGI a resposta
 // nao sai daqui: o CgiHandler assume o poll() e devolve via onCgiComplete().
 void Client::dispatch() {
-	const ServerConfig& vhost = matchVirtualHost();
+	const ServerConfig& vhost = matchVirtualHost(request_);
 
 	CgiTarget cgi;
 	response_ = router_.route(request_, vhost, cgi);
@@ -169,7 +192,7 @@ void Client::dispatch() {
 	                                     cgi.interpreter, cgi.scriptPath);
 	if (!handler->start(loop_)) {
 		delete handler;
-		buildErrorResponse(HTTP_INTERNAL_SERVER_ERROR);
+		buildErrorResponse(HTTP_INTERNAL_SERVER_ERROR, request_);
 		state_ = WRITING_RESPONSE;
 		return;
 	}
@@ -198,13 +221,13 @@ void Client::checkTimeout(std::time_t now, std::time_t timeout) {
 	if (now - lastActivity_ <= timeout)
 		return;
 
-	buildErrorResponse(408);
+	buildErrorResponse(408, request_);
 	closeAfterWrite_ = true;
 	state_ = WRITING_RESPONSE;
 }
 
 bool Client::tryConsumeResidual() {
-	RequestParser::FeedResult result = parser_.feed(NULL, 0, matchVirtualHost().clientMaxBodySize);
+	RequestParser::FeedResult result = feedParser(NULL, 0);
 	if (result == RequestParser::NEED_MORE)
 		return true;
 	else if (result == RequestParser::COMPLETE) {
@@ -213,7 +236,7 @@ bool Client::tryConsumeResidual() {
 		return false;
 	}
 
-	buildErrorResponse(parser_.errorStatus());
+	buildErrorResponse(parser_.errorStatus(), parser_.current());
 	closeAfterWrite_ = true;
 	state_ = WRITING_RESPONSE;
 	return false;

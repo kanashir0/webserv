@@ -5,7 +5,9 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <signal.h>
+#include <csignal>
+#include <cstdlib>
+#include <ctime>
 
 volatile sig_atomic_t g_shutdown;
 
@@ -19,6 +21,8 @@ int main(int argc, char** argv) {
 	// Escrever num socket ou pipe CGI ja fechado nao pode derrubar o servidor:
 	// o retorno -1 do send/write ja e tratado como fim da conexao.
 	std::signal(SIGPIPE, SIG_IGN);
+	// Semeia os identificadores de sessao (bonus). Nao e uma fonte segura.
+	std::srand(static_cast<unsigned int>(std::time(0)));
 
 	std::string confPath = (argc >= 2) ? argv[1] : "conf/default.conf";
 

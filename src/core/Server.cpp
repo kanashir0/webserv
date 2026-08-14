@@ -56,7 +56,6 @@ bool  ListeningSocket::wantsClose() const    {
 
 Server::Server(const std::vector<ServerConfig>& configs,  Router& router)
 	: configs_(configs)
-	, listeners_()
 	, sessions_()
 	, router_(router)
 	, loop_()
@@ -82,8 +81,7 @@ void Server::start() {
 		oss << "SOCKET OUVINDO NA PORT: " << it->first.second;
 		LOG_INFO(oss.str());
 
-		listeners_.push_back(listener);
-
+		// O EventLoop assume a posse do listener e o deleta no destrutor.
 		loop_.add(listener);
 	}
 	loop_.setTickHandler(&sessions_);

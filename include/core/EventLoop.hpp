@@ -14,15 +14,12 @@
 
 extern volatile sig_atomic_t g_shutdown;
 
-class ListeningSockets;
-
 class EventLoop {
 public:
 	EventLoop();
 	~EventLoop();
 
 	void add(IPollable* pollable);
-	void remove(IPollable* pollable);
 
 	void setTickHandler(ITickable* handler);
 
@@ -34,7 +31,6 @@ public:
 
 private:
 	std::vector<IPollable*> pollables_;
-	std::vector<ListeningSockets*> listeners_;
 	ITickable*              tickHandler_;
 	bool                    running_;
 

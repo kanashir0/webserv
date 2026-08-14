@@ -1,5 +1,11 @@
 build/
 webserv
+
+# Arquivos enviados durante os testes: o diretorio precisa existir (senao o
+# parser rejeita upload_store no startup), mas o conteudo nunca e versionado.
+www/uploads/*
+!www/uploads/.gitkeep
+
 *.o
 *.d
 *.a

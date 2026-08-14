@@ -116,6 +116,36 @@ static bool writeFile(const std::string& dest, const std::string& content) {
 }
 
 
+// Um 201 sem corpo deixa o browser numa pagina em branco depois do submit do
+// formulario; o corpo abaixo confirma o upload e leva de volta para o site.
+// O nome vem do cliente, entao passa por escapeHtml antes de entrar no HTML.
+static std::string uploadedPage(const std::string& fileUri,
+                                const std::string& filename,
+                                const std::string& listingUri) {
+	const std::string safeName = StringUtils::escapeHtml(filename);
+	const std::string safeUri  = StringUtils::escapeHtml(fileUri);
+
+	return "<!DOCTYPE html>\r\n"
+	       "<html lang=\"en\">\r\n"
+	       "<head>\r\n"
+	       "<meta charset=\"utf-8\">\r\n"
+	       "<title>File uploaded</title>\r\n"
+	       "<link rel=\"stylesheet\" href=\"/style.css\">\r\n"
+	       "</head>\r\n"
+	       "<body>\r\n"
+	       "<h1>File uploaded</h1>\r\n"
+	       "<p><code>" + safeName + "</code> was stored on the server.</p>\r\n"
+	       "<ul>\r\n"
+	       "<li><a href=\"" + safeUri + "\">Download it back</a></li>\r\n"
+	       "<li><a href=\"" + StringUtils::escapeHtml(listingUri) +
+	           "\">Browse the upload directory</a></li>\r\n"
+	       "<li><a href=\"/\">Back to the index</a></li>\r\n"
+	       "</ul>\r\n"
+	       "</body>\r\n"
+	       "</html>\r\n";
+}
+
+
 PostHandler::PostHandler() {}
 PostHandler::~PostHandler() {}
 
@@ -130,8 +160,10 @@ Response PostHandler::handleUpload(const Request& req,
                                    const LocationConfig& loc,
                                    const ServerConfig& srv) {
 	if (loc.uploadStore.empty()) {
+		// Erro de configuracao, nao do servidor: sem destino de upload o POST
+		// e proibido nesta location — 403 e mais preciso que 500.
 		LOG_ERROR("PostHandler: location \"" + loc.path + "\" sem upload_store");
-		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv);
+		return ResponseFactory::makeError(HTTP_FORBIDDEN, srv);
 	}
 	struct stat info;
 	if (stat(loc.uploadStore.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) ||
@@ -181,8 +213,11 @@ Response PostHandler::handleUpload(const Request& req,
 	if (publicBase.empty() || publicBase[publicBase.size() - 1] != '/') {
 		publicBase += "/";
 	}
+	const std::string fileUri = publicBase + PathResolver::encodeSegment(filename);
+
 	Response r(HTTP_CREATED);
-	r.setHeader("Content-Location", publicBase + PathResolver::encodeSegment(filename));
-	r.setBody("");
+	r.setHeader("Content-Location", fileUri);
+	r.setHeader("Content-Type", "text/html; charset=utf-8");
+	r.setBody(uploadedPage(fileUri, filename, publicBase));
 	return r;
 }

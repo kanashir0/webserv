@@ -32,8 +32,26 @@ bool Request::hasHeader(const std::string& name) const {
 	return headers_.find(name) != headers_.end();
 }
 
-std::string Request::cookie(const std::string& /*name*/) const {
-	// TODO Membro 3: parsear header "Cookie" e retornar valor
+// RFC 6265 §4.2.1: Cookie: name=value; name2=value2
+std::string Request::cookie(const std::string& name) const {
+	const std::string      header = this->header("Cookie");
+	std::string::size_type start  = 0;
+
+	while (start < header.size()) {
+		std::string::size_type end  = header.find(';', start);
+		std::string            pair = (end == std::string::npos)
+			? header.substr(start)
+			: header.substr(start, end - start);
+
+		std::string::size_type eq = pair.find('=');
+		if (eq != std::string::npos
+		 && StringUtils::trim(pair.substr(0, eq)) == name) {
+			return StringUtils::trim(pair.substr(eq + 1));
+		}
+
+		if (end == std::string::npos) break;
+		start = end + 1;
+	}
 	return std::string();
 }
 

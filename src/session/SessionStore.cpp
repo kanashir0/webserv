@@ -1,4 +1,5 @@
 #include "session/SessionStore.hpp"
+#include <cstdlib>
 #include <ctime>
 
 
@@ -44,14 +45,23 @@ void SessionStore::gc() {
 void SessionStore::setTtlSeconds(int ttl) { ttlSeconds_ = ttl; }
 int  SessionStore::ttlSeconds() const     { return ttlSeconds_; }
 
+// 32 digitos hex a partir do relogio, de um contador e do rand() semeado no
+// main(). Nao e criptografico — suficiente para a demonstracao de sessao, mas
+// nao para autenticacao real.
 std::string SessionStore::generateId() {
-	// TODO Membro 3: gerar ID criptograficamente robusto (hex de /dev/urandom)
-	static unsigned long counter = 0;
+	static const char     hexDigits[] = "0123456789abcdef";
+	static unsigned long  counter     = 0;
 	++counter;
-	std::string id = "sess-";
-	for (int i = 0; i < 16; ++i) {
-		unsigned long v = (counter * 2654435761UL + i * 97UL) & 0xFu;
-		id += static_cast<char>(v < 10 ? ('0' + v) : ('a' + (v - 10)));
+
+	unsigned long seed = static_cast<unsigned long>(std::time(0))
+	                   ^ (counter * 2654435761UL);
+
+	std::string id;
+	id.reserve(32);
+	for (int i = 0; i < 32; ++i) {
+		seed = seed * 1103515245UL + 12345UL
+		     + static_cast<unsigned long>(std::rand());
+		id += hexDigits[(seed >> 16) & 0x0F];
 	}
 	return id;
 }

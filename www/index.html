@@ -3,9 +3,33 @@
 <head>
 <meta charset="utf-8">
 <title>webserv</title>
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<h1>It works!</h1>
-<p>This is the placeholder index served by webserv.</p>
+<h1>webserv</h1>
+<p>An HTTP/1.1 server written in C++98 for the 42 curriculum.</p>
+
+<nav>
+	<a href="/about.html">About</a>
+	<a href="/files/">File listing</a>
+	<a href="/upload/">Uploads</a>
+	<a href="/session">Session demo</a>
+	<a href="/cgi-bin/hello.py">CGI</a>
+</nav>
+
+<h2>Try it</h2>
+<ul>
+	<li><a href="/old">/old</a> &mdash; permanent redirect back to this page</li>
+	<li><a href="/files/">/files/</a> &mdash; directory listing (autoindex)</li>
+	<li><a href="/nope">/nope</a> &mdash; custom 404 page</li>
+	<li><a href="/cgi-bin/hello.py">/cgi-bin/hello.py</a> &mdash; CGI script</li>
+	<li><a href="/session">/session</a> &mdash; cookie-backed session counter</li>
+</ul>
+
+<h2>Upload a file</h2>
+<form action="/upload/" method="post" enctype="multipart/form-data">
+	<input type="file" name="file">
+	<button type="submit">Upload</button>
+</form>
 </body>
 </html>
