@@ -1,4 +1,4 @@
-*This project was created as part of the 42 curriculum by <cbrito-s>, <gyasuhir>, <acesar-m>.*
+*This project was created as part of the 42 curriculum by cbrito-s, gyasuhir, acesar-m.*
 
 # webserv
 

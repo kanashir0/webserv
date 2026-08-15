@@ -42,10 +42,6 @@ fclean: clean
 
 re: fclean all
 
-test: $(NAME)
-	@echo "$(BLUE)[Testando]$(NC)   curl-suite"
-	@bash tests/scripts/curl-suite.sh
-
 .PHONY: all clean fclean re test
 
 -include $(DEPS)
