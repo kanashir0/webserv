@@ -14,13 +14,6 @@ void EventLoop::add(IPollable* pollable) {
 	if (pollable) pollables_.push_back(pollable);
 }
 
-void EventLoop::remove(IPollable* pollable) {
-	for (std::vector<IPollable*>::iterator it = pollables_.begin();
-		 it != pollables_.end(); ++it) {
-		if (*it == pollable) { pollables_.erase(it); return; }
-	}
-}
-
 void EventLoop::runOnce(int timeoutMs, int timeoutSec) {
 	std::vector<pollfd> fds;
 	fds.reserve(pollables_.size());
@@ -41,6 +34,8 @@ void EventLoop::runOnce(int timeoutMs, int timeoutSec) {
 
 	int return_poll = poll(&fds[0], fds.size(), timeoutMs);
 	if (return_poll < 0) {
+		// Consultar errno aqui e permitido: a proibicao do subject vale apenas
+		// apos read/recv/write/send. poll() interrompido por sinal nao e erro.
 		if (errno == EINTR)
 			return;
 		throw std::runtime_error(std::string("POLL FAILED: ") + std::strerror(errno));
@@ -56,12 +51,12 @@ void EventLoop::runOnce(int timeoutMs, int timeoutSec) {
 		IPollable* p = pollables_[i];
 		short revents = fds[i].revents;
 
+		if (revents & POLLIN)
+			p->onReadable();
+		if (revents & POLLOUT)
+			p->onWritable();
 		if (revents & (POLLHUP | POLLERR))
 			p->onHangup();
-		else if (revents & POLLIN)
-			p->onReadable();
-		else if (revents & POLLOUT)
-			p->onWritable();
 	}
 }
 

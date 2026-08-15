@@ -17,10 +17,6 @@ private:
 	Response handleUpload(const Request& req,
 	                      const LocationConfig& loc,
 	                      const ServerConfig& srv);
-	Response handleCgi(const Request& req,
-	                   const LocationConfig& loc,
-	                   const ServerConfig& srv,
-	                   const std::string& interpreter);
 };
 
 

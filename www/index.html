@@ -3,9 +3,39 @@
 <head>
 <meta charset="utf-8">
 <title>webserv</title>
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<h1>It works!</h1>
-<p>This is the placeholder index served by webserv.</p>
+<header class="hero">
+	<h1>webserv</h1>
+	<p class="lede">An HTTP/1.1 server written in C++98 for the 42 curriculum.</p>
+</header>
+
+<nav>
+	<a href="/about.html">About</a>
+	<a href="/files/">File listing</a>
+	<a href="/upload/">Uploads</a>
+	<a href="/session">Session demo</a>
+	<a href="/cgi-bin/hello.py">CGI</a>
+</nav>
+
+<section>
+	<h2>Try it</h2>
+	<div class="grid">
+		<a class="card" href="/old"><code>/old</code><span>permanent redirect back to this page</span></a>
+		<a class="card" href="/files/"><code>/files/</code><span>directory listing (autoindex)</span></a>
+		<a class="card" href="/nope"><code>/nope</code><span>custom 404 page</span></a>
+		<a class="card" href="/cgi-bin/hello.py"><code>/cgi-bin/hello.py</code><span>CGI script</span></a>
+		<a class="card" href="/session"><code>/session</code><span>cookie-backed session counter</span></a>
+	</div>
+</section>
+
+<section>
+	<h2>Upload a file</h2>
+	<form action="/upload/" method="post" enctype="multipart/form-data">
+		<input type="file" name="file">
+		<button type="submit">Upload</button>
+	</form>
+</section>
 </body>
 </html>

@@ -14,7 +14,9 @@ public:
 	                const ServerConfig& srv);
 
 private:
-	Response serveFile(const std::string& fsPath, const ServerConfig& srv);
+	Response serveFile(const std::string& fsPath,
+	                   const LocationConfig& loc,
+	                   const ServerConfig& srv);
 	Response serveDirectory(const std::string& fsPath,
 	                        const std::string& uriPath,
 	                        const LocationConfig& loc,

@@ -21,7 +21,6 @@ public:
 	                int port,
 	                const std::vector<ServerConfig>& vhosts,
 	                Router& router,
-	                SessionStore& sessions,
 	                EventLoop& loop);
 	~ListeningSocket();
 
@@ -40,7 +39,6 @@ private:
 	int                              port_;
 	std::vector<ServerConfig>        vhosts_;
 	Router&                          router_;
-	SessionStore&                    sessions_;
 	EventLoop&                       loop_;
 
 	ListeningSocket(const ListeningSocket&);
@@ -49,19 +47,19 @@ private:
 
 class Server {
 public:
-	Server(const std::vector<ServerConfig>& configs, Router& router);
+	// O SessionStore e do main, nao do Server: quem guarda as sessoes e o Router,
+	// e o Server so precisa da referencia para registrar o GC no EventLoop.
+	Server(const std::vector<ServerConfig>& configs, Router& router, SessionStore& sessions);
 	~Server();
 
 	void start();
 	void stop();
 
 	EventLoop&    loop();
-	SessionStore& sessions();
 
 private:
 	std::vector<ServerConfig>                      configs_;
-	std::vector<ListeningSocket*>                  listeners_;
-	SessionStore                                   sessions_;
+	SessionStore&                                  sessions_;
 	Router&                                        router_;
 	EventLoop                                      loop_;
 

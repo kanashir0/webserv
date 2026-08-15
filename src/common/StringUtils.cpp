@@ -80,3 +80,68 @@ long StringUtils::toLong(const std::string& s, bool& ok) {
 	ok = (end != c && *end == '\0');
 	return v;
 }
+
+std::string StringUtils::escapeHtml(const std::string& text) {
+	std::string escaped;
+	escaped.reserve(text.size());
+	for (std::string::size_type i = 0; i < text.size(); ++i) {
+		char c = text[i];
+		if (c == '&') {
+			escaped += "&amp;";
+		} else if (c == '<') {
+			escaped += "&lt;";
+		} else if (c == '>') {
+			escaped += "&gt;";
+		} else if (c == '"') {
+			escaped += "&quot;";
+		} else if (c == '\'') {
+			escaped += "&#39;";
+		} else {
+			escaped += c;
+		}
+	}
+	return escaped;
+}
+
+// Exatamente 4 octetos decimais 0-255 separados por ponto. Rejeita zeros a
+// esquerda ("01") porque inet_aton os leria como octal.
+bool StringUtils::parseIPv4(const std::string& s, unsigned long& out) {
+	unsigned long        value    = 0;
+	std::string::size_type start  = 0;
+	int                  octets   = 0;
+
+	for (;;) {
+		std::string::size_type dot = s.find('.', start);
+		std::string            part = (dot == std::string::npos)
+			? s.substr(start)
+			: s.substr(start, dot - start);
+
+		if (part.empty() || part.size() > 3)
+			return false;
+		if (part.size() > 1 && part[0] == '0')
+			return false;
+		for (std::string::size_type i = 0; i < part.size(); ++i) {
+			if (part[i] < '0' || part[i] > '9')
+				return false;
+		}
+
+		bool ok = false;
+		long n  = toLong(part, ok);
+		if (!ok || n < 0 || n > 255)
+			return false;
+
+		value = (value << 8) | static_cast<unsigned long>(n);
+		++octets;
+
+		if (dot == std::string::npos)
+			break;
+		if (octets == 4)   // ponto sobrando depois do quarto octeto
+			return false;
+		start = dot + 1;
+	}
+
+	if (octets != 4)
+		return false;
+	out = value;
+	return true;
+}

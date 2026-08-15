@@ -4,6 +4,7 @@
 #include "config/ServerConfig.hpp"
 #include <string>
 #include <vector>
+#include <set>
 #include <stdexcept>
 
 
@@ -38,6 +39,9 @@ private:
 	StringVec                 readDirectiveArgs(const std::string& directive);
 	void                      expect(const std::string& token);
 	void                      skipWhitespace();
+	// Marca a diretiva como vista no bloco atual; lanca se ja tinha aparecido.
+	void                      markUnique(std::set<std::string>& seen,
+	                                      const std::string& directive);
 
 	ConfigParser(const ConfigParser&);
 	ConfigParser& operator=(const ConfigParser&);

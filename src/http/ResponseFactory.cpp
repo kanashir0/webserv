@@ -25,12 +25,18 @@ static int readRegularFile(const std::string& path, std::string& outContent) {
 	if (!in.is_open()) {
 		return HTTP_INTERNAL_SERVER_ERROR;
 	}
-	std::ostringstream buf;
-	buf << in.rdbuf();
-	if (in.bad()) {
-		return HTTP_INTERNAL_SERVER_ERROR;
+	// O stat() acima ja deu o tamanho: ler direto no buffer final evita as duas
+	// copias que um ostringstream intermediario custaria por arquivo servido.
+	outContent.resize(static_cast<std::size_t>(st.st_size));
+	if (st.st_size > 0) {
+		in.read(&outContent[0], static_cast<std::streamsize>(st.st_size));
+		if (in.bad()) {
+			outContent.clear();
+			return HTTP_INTERNAL_SERVER_ERROR;
+		}
+		// Arquivo encolheu entre o stat e o read: mantem so o que veio.
+		outContent.resize(static_cast<std::size_t>(in.gcount()));
 	}
-	outContent = buf.str();
 	return HTTP_OK;
 }
 
@@ -56,12 +62,30 @@ static const std::string* findRootForUri(const std::string& uriPath, const Serve
 	return bestRoot;
 }
 
-static bool loadConfiguredErrorPage(int code, const ServerConfig& cfg, std::string& outBody) {
+// A error_page da location vence a do server; se a location nao definir aquele
+// codigo, cai para a do server.
+static const std::string* findErrorPageUri(int code, const ServerConfig& cfg,
+                                           const LocationConfig* loc) {
+	if (loc != 0) {
+		std::map<int, std::string>::const_iterator it = loc->errorPages.find(code);
+		if (it != loc->errorPages.end() && !it->second.empty()) {
+			return &it->second;
+		}
+	}
 	std::map<int, std::string>::const_iterator it = cfg.errorPages.find(code);
-	if (it == cfg.errorPages.end() || it->second.empty()) {
+	if (it != cfg.errorPages.end() && !it->second.empty()) {
+		return &it->second;
+	}
+	return 0;
+}
+
+static bool loadConfiguredErrorPage(int code, const ServerConfig& cfg,
+                                    const LocationConfig* loc, std::string& outBody) {
+	const std::string* configured = findErrorPageUri(code, cfg, loc);
+	if (configured == 0) {
 		return false;
 	}
-	const std::string& pageUri = it->second;
+	const std::string& pageUri = *configured;
 
 	const std::string* root = findRootForUri(pageUri, cfg);
 	if (root != 0 && readRegularFile(PathResolver::joinPath(*root, pageUri), outBody) == HTTP_OK &&
@@ -97,9 +121,10 @@ static Response buildErrorResponse(int code, const std::string& body) {
 	return r;
 }
 
-Response ResponseFactory::makeError(int code, const ServerConfig& cfg) {
+Response ResponseFactory::makeError(int code, const ServerConfig& cfg,
+                                    const LocationConfig* loc) {
 	std::string body;
-	if (!loadConfiguredErrorPage(code, cfg, body)) {
+	if (!loadConfiguredErrorPage(code, cfg, loc, body)) {
 		body = makeBuiltinErrorPage(code);
 	}
 	return buildErrorResponse(code, body);
@@ -130,13 +155,14 @@ Response ResponseFactory::makeRedirect(const std::string& url, int code) {
 
 Response ResponseFactory::makeFile(const std::string& fsPath,
                                    const std::string& mime,
-                                   const ServerConfig& cfg) {
+                                   const ServerConfig& cfg,
+                                   const LocationConfig* loc) {
 	std::string fileContent;
 	int status = readRegularFile(fsPath, fileContent);
 	if (status != HTTP_OK) {
 		LOG_DEBUG("makeFile: " + StringUtils::toString(static_cast<long>(status)) +
 		          " para \"" + fsPath + "\"");
-		return makeError(status, cfg);
+		return makeError(status, cfg, loc);
 	}
 	Response r(HTTP_OK);
 	if (!mime.empty()) {
@@ -144,28 +170,6 @@ Response ResponseFactory::makeFile(const std::string& fsPath,
 	}
 	r.setBody(fileContent);
 	return r;
-}
-
-static std::string escapeHtml(const std::string& text) {
-	std::string escaped;
-	escaped.reserve(text.size());
-	for (std::string::size_type i = 0; i < text.size(); ++i) {
-		char c = text[i];
-		if (c == '&') {
-			escaped += "&amp;";
-		} else if (c == '<') {
-			escaped += "&lt;";
-		} else if (c == '>') {
-			escaped += "&gt;";
-		} else if (c == '"') {
-			escaped += "&quot;";
-		} else if (c == '\'') {
-			escaped += "&#39;";
-		} else {
-			escaped += c;
-		}
-	}
-	return escaped;
 }
 
 static std::string withTrailingSlash(const std::string& uriPath) {
@@ -206,17 +210,18 @@ static bool isDirectoryEntry(const std::string& parentPath, const std::string& e
 
 Response ResponseFactory::makeAutoindex(const std::string& fsPath,
                                         const std::string& uriPath,
-                                        const ServerConfig& cfg) {
+                                        const ServerConfig& cfg,
+                                        const LocationConfig* loc) {
 	int status = classifyDirectory(fsPath);
 	if (status != HTTP_OK) {
 		LOG_DEBUG("makeAutoindex: " + StringUtils::toString(static_cast<long>(status)) +
 		          " para \"" + fsPath + "\"");
-		return makeError(status, cfg);
+		return makeError(status, cfg, loc);
 	}
 	DIR* directory = opendir(fsPath.c_str());
 	if (directory == 0) {
 		LOG_ERROR("makeAutoindex: opendir falhou em \"" + fsPath + "\"");
-		return makeError(HTTP_INTERNAL_SERVER_ERROR, cfg);
+		return makeError(HTTP_INTERNAL_SERVER_ERROR, cfg, loc);
 	}
 
 	StringVec entryNames;
@@ -234,22 +239,30 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 	std::sort(entryNames.begin(), entryNames.end());
 
 	const std::string baseUri     = withTrailingSlash(uriPath);
-	const std::string escapedBase = escapeHtml(baseUri);
+	const std::string escapedBase = StringUtils::escapeHtml(baseUri);
+	// Uma entrada rende ~60 bytes de <li>; reservar evita realocar a cada item
+	// em diretorios grandes.
+	const std::size_t estimatedSize = 512 + entryNames.size() * 96;
 
-	std::string page =
+	std::string page;
+	page.reserve(estimatedSize);
+	page +=
 		"<!DOCTYPE html>\r\n"
 		"<html>\r\n"
 		"<head>\r\n"
 		"<meta charset=\"utf-8\">\r\n"
 		"<title>Index of " + escapedBase + "</title>\r\n"
+		"<link rel=\"stylesheet\" href=\"/style.css\">\r\n"
 		"</head>\r\n"
 		"<body>\r\n"
+		"<header class=\"hero\">\r\n"
 		"<h1>Index of " + escapedBase + "</h1>\r\n"
-		"<hr>\r\n"
+		"</header>\r\n"
+		"<section>\r\n"
 		"<ul>\r\n";
 
 	if (baseUri != "/") {
-		page += "<li><a href=\"" + escapeHtml(baseUri + "../") + "\">../</a></li>\r\n";
+		page += "<li><a href=\"" + StringUtils::escapeHtml(baseUri + "../") + "\">../</a></li>\r\n";
 	}
 	for (StringVec::const_iterator it = entryNames.begin(); it != entryNames.end(); ++it) {
 		const std::string& displayName = *it;
@@ -258,13 +271,13 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 			? displayName.substr(0, displayName.size() - 1)
 			: displayName;
 		std::string href = baseUri + PathResolver::encodeSegment(bareName) + (isDirectory ? "/" : "");
-		page += "<li><a href=\"" + escapeHtml(href) + "\">" + escapeHtml(displayName) + "</a></li>\r\n";
+		page += "<li><a href=\"" + StringUtils::escapeHtml(href) + "\">" + StringUtils::escapeHtml(displayName) + "</a></li>\r\n";
 	}
 
 	page +=
 		"</ul>\r\n"
-		"<hr>\r\n"
-		"<p>webserv</p>\r\n"
+		"</section>\r\n"
+		"<p class=\"back\"><a href=\"/\">&larr; Back to the index</a></p>\r\n"
 		"</body>\r\n"
 		"</html>\r\n";
 
@@ -276,7 +289,8 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 
 // RFC 3875 §6: saida CGI = headers, linha em branco, body. O terminador pode
 // ser \r\n\r\n ou \n\n dependendo do script; aceitamos os dois.
-Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
+Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput, const ServerConfig& cfg,
+                                      const LocationConfig* loc) {
 	std::string::size_type headerEnd = rawCgiOutput.find("\r\n\r\n");
 	std::string::size_type bodyStart;
 	std::string            lineSep;
@@ -287,7 +301,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
 		headerEnd = rawCgiOutput.find("\n\n");
 		if (headerEnd == std::string::npos) {
 			LOG_ERROR("makeFromCgi: saida CGI sem separador de headers");
-			return Response(HTTP_BAD_GATEWAY);
+			return makeError(HTTP_BAD_GATEWAY, cfg, loc);
 		}
 		bodyStart = headerEnd + 2;
 		lineSep   = "\n";
@@ -308,7 +322,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
 		std::string::size_type colon = line.find(':');
 		if (colon == std::string::npos || colon == 0) {
 			LOG_WARN("makeFromCgi: header CGI malformado: \"" + line + "\"");
-			return Response(HTTP_BAD_GATEWAY);
+			return makeError(HTTP_BAD_GATEWAY, cfg, loc);
 		}
 		std::string name  = StringUtils::trim(line.substr(0, colon));
 		std::string value = StringUtils::trim(line.substr(colon + 1));
@@ -319,7 +333,7 @@ Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput) {
 			long code = StringUtils::toLong(value.substr(0, value.find(' ')), ok);
 			if (!ok || code < 100 || code > 599) {
 				LOG_WARN("makeFromCgi: Status CGI invalido: \"" + value + "\"");
-				return Response(HTTP_BAD_GATEWAY);
+				return makeError(HTTP_BAD_GATEWAY, cfg, loc);
 			}
 			resp.setStatus(static_cast<int>(code));
 		} else {

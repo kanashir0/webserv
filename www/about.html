@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>About &mdash; webserv</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="hero">
+	<h1>About</h1>
+	<p class="lede">
+		webserv is a single-threaded, non-blocking HTTP/1.1 server. All socket and
+		CGI pipe I/O is driven by a single <code>poll()</code> call in the main
+		event loop.
+	</p>
+</header>
+
+<section>
+	<h2>Features</h2>
+	<ul>
+		<li>GET, POST and DELETE</li>
+		<li>Virtual hosts on a shared interface:port</li>
+		<li>CGI execution (Python) for GET and POST</li>
+		<li>File uploads, including <code>multipart/form-data</code></li>
+		<li>Directory listing, custom error pages, HTTP redirects</li>
+		<li>Per-server and per-location body size limits</li>
+	</ul>
+</section>
+
+<p class="back"><a href="/">&larr; Back to the index</a></p>
+</body>
+</html>

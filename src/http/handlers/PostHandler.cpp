@@ -10,26 +10,8 @@
 #include <unistd.h>
 
 
-static bool findCgiInterpreter(const std::string& decodedPath,
-                               const LocationConfig& loc,
-                               std::string& interpreter) {
-	for (std::map<std::string, std::string>::const_iterator it = loc.cgi.begin();
-	     it != loc.cgi.end(); ++it) {
-		if (!it->first.empty() && StringUtils::endsWith(decodedPath, it->first)) {
-			interpreter = it->second;
-			return true;
-		}
-	}
-	return false;
-}
-
-static std::string basenameOf(const std::string& s) {
-	std::string::size_type cut = s.find_last_of("/\\");
-	return cut == std::string::npos ? s : s.substr(cut + 1);
-}
-
 static std::string sanitizeFilename(const std::string& rawName) {
-	std::string name = basenameOf(rawName);
+	std::string name = PathResolver::basename(rawName);
 	if (name.empty() || name == "." || name == "..") {
 		return std::string();
 	}
@@ -53,22 +35,22 @@ static std::string filenameFromUri(const std::string& decodedPath, const std::st
 	if (decodedPath.empty() || decodedPath[decodedPath.size() - 1] == '/') {
 		return std::string();
 	}
-	std::string prefix = locPath;
-	if (prefix.size() > 1 && prefix[prefix.size() - 1] == '/') {
-		prefix.erase(prefix.size() - 1);
-	}
-	if (decodedPath == prefix) {
+	if (decodedPath == PathResolver::stripTrailingSlash(locPath)) {
 		return std::string();
 	}
-	return basenameOf(decodedPath);
+	return PathResolver::basename(decodedPath);
 }
 
-static bool isMultipart(const std::string& contentType) {
-	return StringUtils::startsWith(StringUtils::toLower(contentType), "multipart/form-data");
+static bool isMultipart(const std::string& lowerContentType) {
+	return StringUtils::startsWith(lowerContentType, "multipart/form-data");
 }
 
-static bool extractBoundary(const std::string& contentType, std::string& boundary) {
-	std::string::size_type pos = StringUtils::toLower(contentType).find("boundary=");
+// Recebe o Content-Type original e a versao minuscula ja calculada: o valor do
+// boundary e case-sensitive, mas o nome do parametro nao.
+static bool extractBoundary(const std::string& contentType,
+                            const std::string& lowerContentType,
+                            std::string& boundary) {
+	std::string::size_type pos = lowerContentType.find("boundary=");
 	if (pos == std::string::npos) {
 		return false;
 	}
@@ -134,20 +116,43 @@ static bool writeFile(const std::string& dest, const std::string& content) {
 }
 
 
+// Um 201 sem corpo deixa o browser numa pagina em branco depois do submit do
+// formulario; o corpo abaixo confirma o upload e leva de volta para o site.
+// O nome vem do cliente, entao passa por escapeHtml antes de entrar no HTML.
+static std::string uploadedPage(const std::string& fileUri,
+                                const std::string& filename,
+                                const std::string& listingUri) {
+	const std::string safeName = StringUtils::escapeHtml(filename);
+	const std::string safeUri  = StringUtils::escapeHtml(fileUri);
+
+	return "<!DOCTYPE html>\r\n"
+	       "<html lang=\"en\">\r\n"
+	       "<head>\r\n"
+	       "<meta charset=\"utf-8\">\r\n"
+	       "<title>File uploaded</title>\r\n"
+	       "<link rel=\"stylesheet\" href=\"/style.css\">\r\n"
+	       "</head>\r\n"
+	       "<body>\r\n"
+	       "<h1>File uploaded</h1>\r\n"
+	       "<p><code>" + safeName + "</code> was stored on the server.</p>\r\n"
+	       "<ul>\r\n"
+	       "<li><a href=\"" + safeUri + "\">Download it back</a></li>\r\n"
+	       "<li><a href=\"" + StringUtils::escapeHtml(listingUri) +
+	           "\">Browse the upload directory</a></li>\r\n"
+	       "<li><a href=\"/\">Back to the index</a></li>\r\n"
+	       "</ul>\r\n"
+	       "</body>\r\n"
+	       "</html>\r\n";
+}
+
+
 PostHandler::PostHandler() {}
 PostHandler::~PostHandler() {}
 
+// O caso CGI e interceptado pelo Router antes de chegar aqui.
 Response PostHandler::handle(const Request& req,
                              const LocationConfig& loc,
                              const ServerConfig& srv) {
-	std::string decodedPath;
-	if (!PathResolver::percentDecode(req.path(), decodedPath)) {
-		return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv);
-	}
-	std::string interpreter;
-	if (findCgiInterpreter(decodedPath, loc, interpreter)) {
-		return handleCgi(req, loc, srv, interpreter);
-	}
 	return handleUpload(req, loc, srv);
 }
 
@@ -155,33 +160,39 @@ Response PostHandler::handleUpload(const Request& req,
                                    const LocationConfig& loc,
                                    const ServerConfig& srv) {
 	if (loc.uploadStore.empty()) {
+		// Erro de configuracao, nao do servidor: sem destino de upload o POST
+		// e proibido nesta location — 403 e mais preciso que 500.
 		LOG_ERROR("PostHandler: location \"" + loc.path + "\" sem upload_store");
-		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv);
+		return ResponseFactory::makeError(HTTP_FORBIDDEN, srv, &loc);
 	}
 	struct stat info;
 	if (stat(loc.uploadStore.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) ||
 	    access(loc.uploadStore.c_str(), W_OK | X_OK) != 0) {
 		LOG_ERROR("PostHandler: upload_store inacessivel: \"" + loc.uploadStore + "\"");
-		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv);
+		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv, &loc);
 	}
 
 	std::string decodedPath;
 	if (!PathResolver::percentDecode(req.path(), decodedPath)) {
-		return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv);
+		return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv, &loc);
 	}
 
-	std::string filename;
-	std::string content;
-	const std::string contentType = req.header("Content-Type");
-	if (isMultipart(contentType)) {
+	std::string       filename;
+	std::string       extracted;
+	const std::string contentType      = req.header("Content-Type");
+	const std::string lowerContentType = StringUtils::toLower(contentType);
+
+	// Aponta para o corpo original quando nao ha multipart, evitando copiar ate
+	// client_max_body_size a cada upload.
+	const std::string* content = &req.body();
+	if (isMultipart(lowerContentType)) {
 		std::string boundary;
-		if (!extractBoundary(contentType, boundary) ||
-		    !firstMultipartPart(req.body(), boundary, filename, content)) {
+		if (!extractBoundary(contentType, lowerContentType, boundary) ||
+		    !firstMultipartPart(req.body(), boundary, filename, extracted)) {
 			LOG_WARN("PostHandler: multipart/form-data malformado");
-			return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv);
+			return ResponseFactory::makeError(HTTP_BAD_REQUEST, srv, &loc);
 		}
-	} else {
-		content = req.body();
+		content = &extracted;
 	}
 
 	if (filename.empty()) {
@@ -193,25 +204,20 @@ Response PostHandler::handleUpload(const Request& req,
 	}
 
 	const std::string dest = PathResolver::joinPath(loc.uploadStore, filename);
-	if (!writeFile(dest, content)) {
+	if (!writeFile(dest, *content)) {
 		LOG_ERROR("PostHandler: falha ao gravar \"" + dest + "\"");
-		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv);
+		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, srv, &loc);
 	}
 
 	std::string publicBase = loc.path;
 	if (publicBase.empty() || publicBase[publicBase.size() - 1] != '/') {
 		publicBase += "/";
 	}
-	Response r(HTTP_CREATED);
-	r.setHeader("Content-Location", publicBase + PathResolver::encodeSegment(filename));
-	r.setBody("");
-	return r;
-}
+	const std::string fileUri = publicBase + PathResolver::encodeSegment(filename);
 
-Response PostHandler::handleCgi(const Request& /*req*/,
-                                const LocationConfig& /*loc*/,
-                                const ServerConfig& srv,
-                                const std::string& /*interpreter*/) {
-	// TODO Membro 3 + Membro 1 (E05-T03/E06): integracao assincrona com CgiHandler
-	return ResponseFactory::makeError(HTTP_NOT_IMPLEMENTED, srv);
+	Response r(HTTP_CREATED);
+	r.setHeader("Content-Location", fileUri);
+	r.setHeader("Content-Type", "text/html; charset=utf-8");
+	r.setBody(uploadedPage(fileUri, filename, publicBase));
+	return r;
 }

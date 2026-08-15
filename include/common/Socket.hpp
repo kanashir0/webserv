@@ -3,13 +3,13 @@
 
 #include "common/FileDescriptor.hpp"
 #include "common/Logger.hpp"
+#include "common/StringUtils.hpp"
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <cstring>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <fcntl.h>
 #include <cerrno>
 

@@ -2,7 +2,31 @@
 #include "common/HttpStatus.hpp"
 #include "common/Logger.hpp"
 #include "common/StringUtils.hpp"
+#include <ctime>
+#include <iomanip>
 #include <sstream>
+
+// RFC 7231 §7.1.1.2: o formato IMF-fixdate e sempre em ingles e em GMT, entao
+// os nomes sao fixos aqui em vez de sairem de strftime (que depende de locale).
+static std::string httpDate() {
+	static const char* days[]   = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+	static const char* months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+	std::time_t now = std::time(0);
+	std::tm*    utc = std::gmtime(&now);
+	if (utc == 0) {
+		return std::string();
+	}
+
+	std::ostringstream oss;
+	oss << days[utc->tm_wday] << ", "
+	    << std::setw(2) << std::setfill('0') << utc->tm_mday << " "
+	    << months[utc->tm_mon] << " " << (utc->tm_year + 1900) << " "
+	    << std::setw(2) << std::setfill('0') << utc->tm_hour << ":"
+	    << std::setw(2) << std::setfill('0') << utc->tm_min << ":"
+	    << std::setw(2) << std::setfill('0') << utc->tm_sec << " GMT";
+	return oss.str();
+}
 
 static bool isValidHeaderKey(const std::string& key) {
 	static const std::string separators = "()<>@,;:\\\"/[]?={}";
@@ -75,16 +99,23 @@ const HeaderMap&   Response::headers() const { return headers_; }
 const std::string& Response::body()    const { return body_; }
 
 std::string Response::toString() const {
-	std::ostringstream oss;
-	oss << "HTTP/1.1 " << status_ << " " << statusReason(status_) << "\r\n";
+	std::string head = "HTTP/1.1 " + StringUtils::toString(status_) + " " +
+	                   statusReason(status_) + "\r\n";
+	if (headers_.find("Date") == headers_.end()) {
+		head += "Date: " + httpDate() + "\r\n";
+	}
 	for (HeaderMap::const_iterator it = headers_.begin(); it != headers_.end(); ++it) {
-		oss << it->first << ": " << it->second << "\r\n";
+		head += it->first + ": " + it->second + "\r\n";
 	}
 	for (StringVec::const_iterator it = cookies_.begin(); it != cookies_.end(); ++it) {
-		oss << "Set-Cookie: " << *it << "\r\n";
+		head += "Set-Cookie: " + *it + "\r\n";
 	}
-	oss << "\r\n";
-	oss << body_;
-	return oss.str();
+	head += "\r\n";
+
+	// Reservar antes de anexar o corpo evita realocar (e recopiar) um body que
+	// pode ter megabytes.
+	head.reserve(head.size() + body_.size());
+	head += body_;
+	return head;
 }
 

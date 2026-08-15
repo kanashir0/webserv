@@ -16,21 +16,26 @@
 #include <cerrno>
 
 class Router;
-class SessionStore;
+class EventLoop;
+class CgiHandler;
 
 class Client : public IPollable {
 public:
 	enum State {
 		DONE,
 		READING_HEADERS,
-		WRITING_RESPONSE
+		WRITING_RESPONSE,
+		WAITING_CGI      // script rodando; quem esta no poll() e o CgiHandler
 	};
 
 	Client(int fd,
 	       std::vector<ServerConfig>& vhosts,
 	       Router& router,
-	       SessionStore& sessions);
+	       EventLoop& loop);
 	~Client();
+
+	// Chamado pelo CgiHandler quando o script termina (ou estoura o timeout).
+	void onCgiComplete(const Response& resp);
 
 	int   fd() const;
 	short interest() const;
@@ -63,11 +68,16 @@ private:
 
 	std::vector<ServerConfig>&       vhosts_;
 	Router&                          router_;
-	SessionStore&                    sessions_;
+	EventLoop&                       loop_;
+	CgiHandler*                      cgi_;   // pertence ao EventLoop, nao ao Client
 
-	const ServerConfig& matchVirtualHost() const;
-	void                buildErrorResponse(int code);
+	const ServerConfig& matchVirtualHost(const Request& req) const;
+	std::size_t         effectiveBodyLimit(const Request& req) const;
+	RequestParser::FeedResult feedParser(const char* data, std::size_t n);
+	void                buildErrorResponse(int code, const Request& req);
 	bool                tryConsumeResidual();
+	void                dispatch();
+	bool                willClose() const;
 
 	Client(const Client&);
 	Client& operator=(const Client&);

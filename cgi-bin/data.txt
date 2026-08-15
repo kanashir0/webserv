@@ -1,0 +1,3 @@
+relative-file-ok
+Este arquivo so e alcancavel por caminho relativo ("data.txt") se o servidor
+tiver feito chdir para o diretorio do script antes do execve.

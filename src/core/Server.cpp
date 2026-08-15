@@ -4,14 +4,12 @@ ListeningSocket::ListeningSocket(const std::string& host,
                                  int port,
                                  const std::vector<ServerConfig>& vhosts,
                                  Router& router,
-                                 SessionStore& sessions,
                                  EventLoop& loop)
 	: socket_()
 	, host_(host)
     , port_(port)
 	, vhosts_(vhosts)
 	, router_(router)
-	, sessions_(sessions)
 	, loop_(loop)
 {
 	socket_.bindAndListen(host, port);
@@ -39,7 +37,7 @@ void  ListeningSocket::onReadable() {
 			client_fd,
 			vhosts_,
 			router_,
-			sessions_
+			loop_
 		);
 
 		loop_.add(client);
@@ -53,10 +51,9 @@ bool  ListeningSocket::wantsClose() const    {
 	return false;
 }
 
-Server::Server(const std::vector<ServerConfig>& configs,  Router& router)
+Server::Server(const std::vector<ServerConfig>& configs, Router& router, SessionStore& sessions)
 	: configs_(configs)
-	, listeners_()
-	, sessions_()
+	, sessions_(sessions)
 	, router_(router)
 	, loop_()
 {}
@@ -75,16 +72,16 @@ void Server::start() {
 	for (std::map<Endpoint, std::vector<ServerConfig> >::iterator it = groups_.begin();
          it != groups_.end(); it++) {
 
-		ListeningSocket* listener = new ListeningSocket(it->first.first, it->first.second, it->second, router_, sessions_, loop_);
+		ListeningSocket* listener = new ListeningSocket(it->first.first, it->first.second, it->second, router_, loop_);
 
 		std::ostringstream oss;
 		oss << "SOCKET OUVINDO NA PORT: " << it->first.second;
 		LOG_INFO(oss.str());
 
-		listeners_.push_back(listener);
-
+		// O EventLoop assume a posse do listener e o deleta no destrutor.
 		loop_.add(listener);
 	}
+	// GC das sessoes a cada tick do loop, no store que o Router realmente usa.
 	loop_.setTickHandler(&sessions_);
 	loop_.run();
 }
@@ -95,10 +92,6 @@ void Server::stop() {
 
 EventLoop&    Server::loop()     {
 	return loop_;
-}
-
-SessionStore& Server::sessions() {
-	return sessions_;
 }
 
 void        ListeningSocket::checkTimeout(time_t now, time_t timeout) {
