@@ -47,8 +47,6 @@ private:
 
 class Server {
 public:
-	// O SessionStore e do main, nao do Server: quem guarda as sessoes e o Router,
-	// e o Server so precisa da referencia para registrar o GC no EventLoop.
 	Server(const std::vector<ServerConfig>& configs, Router& router, SessionStore& sessions);
 	~Server();
 

@@ -21,9 +21,6 @@ public:
 
 	enum FeedResult {
 		NEED_MORE,
-		// Headers completos e ha body pela frente. O parse pausa aqui para o
-		// chamador poder calcular o limite de body ja sabendo Host e path;
-		// basta chamar feed(NULL, 0, limite) para retomar de onde parou.
 		HEADERS_READY,
 		COMPLETE,
 		BAD_REQUEST,

@@ -18,8 +18,6 @@ public:
 
 	static std::string encodeSegment(const std::string& segment);
 
-	// Ultimo segmento do caminho. Corta em '/' e '\' para que um filename
-	// vindo de multipart/form-data nao possa escapar do diretorio.
 	static std::string basename(const std::string& path);
 
 	// Remove a barra final, preservando a raiz "/".

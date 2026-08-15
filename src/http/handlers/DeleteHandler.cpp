@@ -19,8 +19,6 @@ static std::string parentDir(const std::string& fsPath) {
 	return fsPath.substr(0, slash);
 }
 
-// Uploads gravam em upload_store, nao sob o root; o DELETE precisa
-// resolver no mesmo lugar para a location ser simetrica com o POST.
 static int resolveInUploadStore(const std::string& uriPath,
                                 const LocationConfig& loc,
                                 std::string& fsPath) {

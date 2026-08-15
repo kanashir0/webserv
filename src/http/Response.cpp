@@ -6,8 +6,6 @@
 #include <iomanip>
 #include <sstream>
 
-// RFC 7231 §7.1.1.2: o formato IMF-fixdate e sempre em ingles e em GMT, entao
-// os nomes sao fixos aqui em vez de sairem de strftime (que depende de locale).
 static std::string httpDate() {
 	static const char* days[]   = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 	static const char* months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -112,8 +110,6 @@ std::string Response::toString() const {
 	}
 	head += "\r\n";
 
-	// Reservar antes de anexar o corpo evita realocar (e recopiar) um body que
-	// pode ter megabytes.
 	head.reserve(head.size() + body_.size());
 	head += body_;
 	return head;

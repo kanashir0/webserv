@@ -5,10 +5,6 @@
 #include "config/ServerConfig.hpp"
 #include <string>
 
-// O parametro `loc` opcional carrega a location que atendeu a requisicao: as
-// error_page dela vencem as do server. Passe 0 quando nenhuma location casou
-// (404 do Router) ou quando a requisicao nem chegou a ser roteada (erro de
-// parsing), casos em que so restam as paginas do server.
 class ResponseFactory {
 public:
 	static Response makeError(int code, const ServerConfig& cfg,

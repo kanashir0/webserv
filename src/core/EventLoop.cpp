@@ -34,8 +34,7 @@ void EventLoop::runOnce(int timeoutMs, int timeoutSec) {
 
 	int return_poll = poll(&fds[0], fds.size(), timeoutMs);
 	if (return_poll < 0) {
-		// Consultar errno aqui e permitido: a proibicao do subject vale apenas
-		// apos read/recv/write/send. poll() interrompido por sinal nao e erro.
+		// errno apos poll() e permitido: a proibicao vale para read/write.
 		if (errno == EINTR)
 			return;
 		throw std::runtime_error(std::string("POLL FAILED: ") + std::strerror(errno));

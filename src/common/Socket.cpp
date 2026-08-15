@@ -19,8 +19,6 @@ void Socket::bindAndListen(const std::string& host, int port, int backlog) {
 	sockaddr_in addr;
 	std::memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	// O host ja foi validado pelo ConfigParser, entao aqui nao ha fallback
-	// silencioso: um endereco invalido e erro de configuracao, nao de runtime.
 	unsigned long address = 0;
 	if (!StringUtils::parseIPv4(host, address))
 		throw std::runtime_error("invalid listen address: " + host);
@@ -43,8 +41,7 @@ int Socket::acceptConnection() {
 
 	int client_fd = accept(fd(), (sockaddr*)&client, &clientlen);
 	if (client_fd < 0) {
-		// Fila de conexoes vazia ou accept falhou: nos dois casos o unico
-		// desfecho e parar o laco de accept, entao errno nao e consultado.
+		// Fila vazia ou erro: para o laco sem consultar errno.
 		return -1;
 	}
 

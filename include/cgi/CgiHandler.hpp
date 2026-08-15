@@ -15,11 +15,6 @@
 class EventLoop;
 class Client;
 
-// Roda um script CGI sem bloquear o servidor: o processo filho e criado em
-// start() e este objeto entra no EventLoop como mais um IPollable. Enquanto
-// houver body a enviar poll() observa a ponta de escrita do stdin do script;
-// depois passa a observar a ponta de leitura do stdout. Quando o script
-// termina, a Response e empurrada de volta para o Client.
 class CgiHandler : public IPollable {
 public:
 	CgiHandler(Client& client,
@@ -30,12 +25,8 @@ public:
 	           const std::string& scriptPath);
 	~CgiHandler();
 
-	// Cria os pipes, faz fork/execve e se registra no loop.
-	// Devolve false se o processo nao pode ser iniciado.
 	bool start(EventLoop& loop);
 
-	// Chamado pelo Client que morre antes do script terminar: o script perde
-	// o destinatario da resposta e e encerrado.
 	void detachClient();
 
 	int   fd() const;

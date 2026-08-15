@@ -103,8 +103,6 @@ std::string StringUtils::escapeHtml(const std::string& text) {
 	return escaped;
 }
 
-// Exatamente 4 octetos decimais 0-255 separados por ponto. Rejeita zeros a
-// esquerda ("01") porque inet_aton os leria como octal.
 bool StringUtils::parseIPv4(const std::string& s, unsigned long& out) {
 	unsigned long        value    = 0;
 	std::string::size_type start  = 0;

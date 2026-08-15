@@ -183,9 +183,6 @@ The server has been verified with `valgrind --leak-check=full --track-fds=yes`
 
 AI assistance (Claude) was used on this project for the following tasks:
 
-- **Project scaffolding** — generating the initial class and directory layout
-  (`IPollable`/`EventLoop` reactor split, module boundaries) from our design
-  notes, which we then reviewed and adjusted.
 - **Code review** — auditing the codebase against the subject's constraints
   (single `poll()`, no `errno` after I/O calls, `fork()` only for CGI, C++98
   compliance) and reporting bugs, notably a request body limit that ignored the

@@ -12,8 +12,6 @@
 
 class SessionStore;
 
-// Preenchido por route() quando a requisicao cai num script CGI. Nesse caso a
-// Response devolvida nao vale nada: quem chama deve iniciar um CgiHandler.
 struct CgiTarget {
 	const LocationConfig* loc;
 	std::string           interpreter;

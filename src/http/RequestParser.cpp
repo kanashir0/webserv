@@ -86,8 +86,6 @@ RequestParser::FeedResult RequestParser::feed(const char* data,
 		}
 
 		if (r != NEED_MORE)   return r;         // COMPLETE ou erro
-		// O limite de body depende de Host e path, que só existem agora que os
-		// headers acabaram: devolve o controle antes de tocar no body.
 		if (before == HEADER && (state_ == BODY_LENGTH || state_ == BODY_CHUNKED))
 			return HEADERS_READY;
 		if (state_ == before) return NEED_MORE; // não progrediu: faltam bytes
@@ -220,8 +218,6 @@ RequestParser::FeedResult RequestParser::parseHeaders() {
 	}
 
 	if (hasCL) {
-		// RFC 7230 §3.3.2: Content-Length = 1*DIGIT. toLong herda o aceite de
-		// sinal do strtol, então "+12" e "-0" passariam sem este filtro.
 		const std::string& cl = building_.header("Content-Length");
 		bool ok = !cl.empty() && cl.find_first_not_of("0123456789") == std::string::npos;
 		long v  = ok ? StringUtils::toLong(cl, ok) : 0;

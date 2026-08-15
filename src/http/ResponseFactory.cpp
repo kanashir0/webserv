@@ -25,8 +25,6 @@ static int readRegularFile(const std::string& path, std::string& outContent) {
 	if (!in.is_open()) {
 		return HTTP_INTERNAL_SERVER_ERROR;
 	}
-	// O stat() acima ja deu o tamanho: ler direto no buffer final evita as duas
-	// copias que um ostringstream intermediario custaria por arquivo servido.
 	outContent.resize(static_cast<std::size_t>(st.st_size));
 	if (st.st_size > 0) {
 		in.read(&outContent[0], static_cast<std::streamsize>(st.st_size));
@@ -62,8 +60,6 @@ static const std::string* findRootForUri(const std::string& uriPath, const Serve
 	return bestRoot;
 }
 
-// A error_page da location vence a do server; se a location nao definir aquele
-// codigo, cai para a do server.
 static const std::string* findErrorPageUri(int code, const ServerConfig& cfg,
                                            const LocationConfig* loc) {
 	if (loc != 0) {
@@ -240,8 +236,6 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 
 	const std::string baseUri     = withTrailingSlash(uriPath);
 	const std::string escapedBase = StringUtils::escapeHtml(baseUri);
-	// Uma entrada rende ~60 bytes de <li>; reservar evita realocar a cada item
-	// em diretorios grandes.
 	const std::size_t estimatedSize = 512 + entryNames.size() * 96;
 
 	std::string page;
@@ -287,8 +281,6 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 	return r;
 }
 
-// RFC 3875 §6: saida CGI = headers, linha em branco, body. O terminador pode
-// ser \r\n\r\n ou \n\n dependendo do script; aceitamos os dois.
 Response ResponseFactory::makeFromCgi(const std::string& rawCgiOutput, const ServerConfig& cfg,
                                       const LocationConfig* loc) {
 	std::string::size_type headerEnd = rawCgiOutput.find("\r\n\r\n");

@@ -18,8 +18,6 @@ void signalHandler(int) {
 int main(int argc, char** argv) {
 	std::signal(SIGINT, signalHandler);
 	std::signal(SIGTERM, signalHandler);
-	// Escrever num socket ou pipe CGI ja fechado nao pode derrubar o servidor:
-	// o retorno -1 do send/write ja e tratado como fim da conexao.
 	std::signal(SIGPIPE, SIG_IGN);
 	// Semeia os identificadores de sessao (bonus). Nao e uma fonte segura.
 	std::srand(static_cast<unsigned int>(std::time(0)));

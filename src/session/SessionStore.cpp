@@ -45,9 +45,6 @@ void SessionStore::gc() {
 void SessionStore::setTtlSeconds(int ttl) { ttlSeconds_ = ttl; }
 int  SessionStore::ttlSeconds() const     { return ttlSeconds_; }
 
-// 32 digitos hex a partir do relogio, de um contador e do rand() semeado no
-// main(). Nao e criptografico — suficiente para a demonstracao de sessao, mas
-// nao para autenticacao real.
 std::string SessionStore::generateId() {
 	static const char     hexDigits[] = "0123456789abcdef";
 	static unsigned long  counter     = 0;

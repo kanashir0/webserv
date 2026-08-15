@@ -3,8 +3,6 @@
 #include <cctype>
 
 
-// RFC 3875 §4.1.18: cada header da requisicao vira HTTP_<NOME>, com os
-// hifens trocados por underscore e tudo em maiusculo.
 static std::string headerToEnvName(const std::string& headerName) {
 	std::string name = "HTTP_";
 	for (std::string::size_type i = 0; i < headerName.size(); ++i) {

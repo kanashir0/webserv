@@ -30,8 +30,6 @@ static int parseStatusCode(const std::string& s, std::size_t line) {
 	return static_cast<int>(code);
 }
 
-// Exige que o caminho exista e seja um diretorio. Falhar no startup e muito
-// mais barato de diagnosticar que um 404/500 na primeira requisicao.
 static void requireDirectory(const std::string& directive, const std::string& path,
                              std::size_t line) {
 	struct stat st;
@@ -102,8 +100,6 @@ static std::size_t parseSize(const std::string& arg, std::size_t line) {
 }
 
 
-// server_name vira SERVER_NAME no ambiente CGI e e comparado com o header
-// Host: aceitar so o charset valido de hostname evita surpresas nos dois usos.
 static void validateServerName(const std::string& name, std::size_t line) {
 	if (name.empty())
 		throw ConfigParser::ParseError("empty server_name", line);
@@ -124,8 +120,6 @@ ConfigParser::ConfigParser() : source_(), pos_(0), line_(1), state_(TOPLEVEL) {}
 ConfigParser::~ConfigParser() {}
 
 std::vector<ServerConfig> ConfigParser::parseFile(const std::string& path) {
-	// ifstream abre diretório sem erro e só devolve zero bytes — indistinguível
-	// de um arquivo vazio, que é válido. Só stat() separa os dois casos.
 	struct stat st;
 	if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
 		throw ParseError("config path is a directory: " + path, 0);
@@ -343,8 +337,6 @@ LocationConfig ConfigParser::parseLocationBlock() {
 					throw ParseError("return expects code 301 or 302, got '" + args[0] + "'", line_);
 				loc.redirect     = args[1];
 			} else {
-				// Um argumento so-digitos e um codigo sem destino: 'return 42;'
-				// nao redireciona para lugar nenhum e nao e um path valido.
 				if (args[0].find_first_not_of("0123456789") == std::string::npos)
 					throw ParseError("return with a status code requires a target URL: '"
 					                 + args[0] + "'", line_);

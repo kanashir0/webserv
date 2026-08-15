@@ -12,8 +12,6 @@
 #include <unistd.h>
 
 
-// Timeout proprio do CGI: o do EventLoop mede conexao ociosa e e longo demais
-// para segurar um cliente esperando por um script travado.
 static const int         CGI_TIMEOUT_SEC = 10;
 static const std::size_t CGI_CHUNK_SIZE  = 4096;
 
@@ -57,8 +55,6 @@ void CgiHandler::runChild(int inPipe[2], int outPipe[2]) {
 	if (::dup2(inPipe[0], STDIN_FILENO) < 0 || ::dup2(outPipe[1], STDOUT_FILENO) < 0) {
 		::_exit(1);
 	}
-	// O filho precisa largar as quatro pontas originais: enquanto ele mantiver
-	// a ponta de escrita do proprio stdin aberta, nunca veria o EOF.
 	::close(inPipe[0]);
 	::close(inPipe[1]);
 	::close(outPipe[0]);
@@ -103,13 +99,9 @@ bool CgiHandler::start(EventLoop& loop) {
 	}
 	if (pid_ == 0) {
 		runChild(in, out);
-		// runChild so retorna se algo muito errado acontecer; sem este _exit o
-		// filho cairia no codigo do pai e voltaria para o event loop.
 		::_exit(1);
 	}
 
-	// Pai: fica com a escrita do stdin e a leitura do stdout; as outras duas
-	// pontas sao do filho e fecham ao sair deste escopo (RAII).
 	FileDescriptor childStdin(in[0]);
 	FileDescriptor childStdout(out[1]);
 	stdinPipe_.reset(in[1]);
@@ -192,8 +184,6 @@ void CgiHandler::onHangup() {
 		stopWritingInput();
 		return;
 	}
-	// O POLLHUP do stdout chega junto com o que ainda estiver no buffer do
-	// kernel: uma leitura por evento, encerrando so quando ela devolver 0.
 	if (phase_ == READING_OUTPUT && readChunk() > 0) {
 		return;
 	}
@@ -238,8 +228,6 @@ void CgiHandler::reapChild() {
 	}
 	int status;
 	if (::waitpid(pid_, &status, WNOHANG) == 0) {
-		// Script ainda vivo. SIGKILL nao pode ser ignorado, entao a espera
-		// seguinte retorna de imediato.
 		::kill(pid_, SIGKILL);
 		::waitpid(pid_, &status, 0);
 	}

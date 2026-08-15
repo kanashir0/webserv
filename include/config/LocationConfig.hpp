@@ -7,10 +7,6 @@
 #include <cstddef>
 
 
-// Campos que existem tambem no ServerConfig sao herdados quando a location nao
-// os declara. Como `false` e `0` sao valores legitimos, quem nao pode usar uma
-// sentinela carrega um booleano `...Set` dizendo se a diretiva apareceu.
-// `root` e `index` dispensam a flag: string vazia nunca e um valor valido.
 struct LocationConfig {
 	std::string                        path;
 	StringVec                          methods;

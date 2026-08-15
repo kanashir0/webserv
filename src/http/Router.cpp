@@ -8,8 +8,6 @@
 #include <sys/stat.h>
 
 
-// Rota interna do bonus de sessoes. Nao existe em disco: o Router a intercepta
-// antes de despachar para os handlers de metodo.
 static const char* const kSessionPath   = "/session";
 static const char* const kSessionCookie = "sid";
 
@@ -74,8 +72,6 @@ Response Router::route(const Request& req, const ServerConfig& vhost, CgiTarget&
 		if (req.path() == kSessionPath) {
 			return handleSession(req);
 		}
-		// O CGI atende qualquer metodo permitido na location, entao a checagem
-		// vem antes do despacho por metodo.
 		std::string decodedPath;
 		std::string interpreter;
 		if (!loc->cgi.empty() &&
@@ -103,8 +99,6 @@ Response Router::route(const Request& req, const ServerConfig& vhost, CgiTarget&
 	return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, vhost);
 }
 
-// Valida o script e preenche o alvo. A Response so importa quando algo falha:
-// com cgi.active() verdadeiro quem chama descarta o valor devolvido.
 Response Router::prepareCgi(const Request& req,
                             const LocationConfig& loc,
                             const ServerConfig& vhost,
@@ -142,8 +136,6 @@ bool Router::methodAllowed(const std::string& method, const LocationConfig& loc)
 	return false;
 }
 
-// Demonstracao do bonus de cookies/sessao: conta visitas por cliente. O estado
-// vive no SessionStore (server-side); o browser so carrega o identificador.
 Response Router::handleSession(const Request& req) {
 	const std::string incoming = req.cookie(kSessionCookie);
 	Session*          existing = incoming.empty() ? 0 : sessions_.find(incoming);

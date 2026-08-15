@@ -82,8 +82,6 @@ void  Client::onWritable()       {
 	lastActivity_ = std::time(0);
 
 	if (!responseSerialized_) {
-		// Quem manda na semantica da conexao e o servidor, nao o handler nem o
-		// script CGI: o header e escrito aqui, ja sabendo se vamos fechar.
 		response_.setHeader("Connection", willClose() ? "close" : "keep-alive");
 		outBuffer_ = response_.toString();
 		outOffset_ = 0;
@@ -146,9 +144,6 @@ const ServerConfig& Client::matchVirtualHost(const Request& req) const {
 	return vhosts_.front();
 }
 
-// Limite efetivo de body: o da location vence o do server quando a diretiva
-// aparece nela. Em ambos os niveis 0 significa "sem limite", coerente com o
-// que o RequestParser faz com maxBody == 0.
 std::size_t Client::effectiveBodyLimit(const Request& req) const {
 	const ServerConfig&   vhost = matchVirtualHost(req);
 	const LocationConfig* loc   = vhost.findLocation(req.path());
@@ -158,8 +153,6 @@ std::size_t Client::effectiveBodyLimit(const Request& req) const {
 	return vhost.clientMaxBodySize;
 }
 
-// Alimenta o parser lidando com a pausa em HEADERS_READY: o limite de body so
-// pode ser calculado depois dos headers, entao o parse e retomado com ele.
 RequestParser::FeedResult Client::feedParser(const char* data, std::size_t n) {
 	RequestParser::FeedResult result =
 		parser_.feed(data, n, effectiveBodyLimit(parser_.current()));
@@ -174,8 +167,6 @@ void Client::buildErrorResponse(int code, const Request& req) {
 	response_ = ResponseFactory::makeError(code, matchVirtualHost(req));
 }
 
-// Roteia a requisicao ja completa. Quando o alvo e um script CGI a resposta
-// nao sai daqui: o CgiHandler assume o poll() e devolve via onCgiComplete().
 void Client::dispatch() {
 	const ServerConfig& vhost = matchVirtualHost(request_);
 
@@ -198,8 +189,6 @@ void Client::dispatch() {
 	state_ = WAITING_CGI;
 }
 
-// closeAfterWrite_ cobre os casos em que a conexao nao pode continuar (erro de
-// parser, timeout); fora deles vale a negociacao do proprio request.
 bool Client::willClose() const {
 	return closeAfterWrite_ || !request_.keepAlive();
 }

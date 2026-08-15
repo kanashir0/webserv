@@ -45,8 +45,6 @@ static bool isMultipart(const std::string& lowerContentType) {
 	return StringUtils::startsWith(lowerContentType, "multipart/form-data");
 }
 
-// Recebe o Content-Type original e a versao minuscula ja calculada: o valor do
-// boundary e case-sensitive, mas o nome do parametro nao.
 static bool extractBoundary(const std::string& contentType,
                             const std::string& lowerContentType,
                             std::string& boundary) {
@@ -116,9 +114,6 @@ static bool writeFile(const std::string& dest, const std::string& content) {
 }
 
 
-// Um 201 sem corpo deixa o browser numa pagina em branco depois do submit do
-// formulario; o corpo abaixo confirma o upload e leva de volta para o site.
-// O nome vem do cliente, entao passa por escapeHtml antes de entrar no HTML.
 static std::string uploadedPage(const std::string& fileUri,
                                 const std::string& filename,
                                 const std::string& listingUri) {
@@ -160,8 +155,6 @@ Response PostHandler::handleUpload(const Request& req,
                                    const LocationConfig& loc,
                                    const ServerConfig& srv) {
 	if (loc.uploadStore.empty()) {
-		// Erro de configuracao, nao do servidor: sem destino de upload o POST
-		// e proibido nesta location — 403 e mais preciso que 500.
 		LOG_ERROR("PostHandler: location \"" + loc.path + "\" sem upload_store");
 		return ResponseFactory::makeError(HTTP_FORBIDDEN, srv, &loc);
 	}
@@ -182,8 +175,6 @@ Response PostHandler::handleUpload(const Request& req,
 	const std::string contentType      = req.header("Content-Type");
 	const std::string lowerContentType = StringUtils::toLower(contentType);
 
-	// Aponta para o corpo original quando nao ha multipart, evitando copiar ate
-	// client_max_body_size a cada upload.
 	const std::string* content = &req.body();
 	if (isMultipart(lowerContentType)) {
 		std::string boundary;

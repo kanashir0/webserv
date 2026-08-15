@@ -16,11 +16,7 @@ public:
 	static bool        iequals(const std::string& a, const std::string& b);
 	static std::string toString(long n);
 	static long        toLong(const std::string& s, bool& ok);
-	// Escapa texto que vai para dentro de HTML gerado pelo servidor. Sempre
-	// use ao interpolar dados vindos do cliente (nomes de arquivo, paths).
 	static std::string escapeHtml(const std::string& text);
-	// Converte "a.b.c.d" no endereco em host byte order. Substitui inet_pton,
-	// que nao consta na lista de funcoes autorizadas pelo subject.
 	static bool        parseIPv4(const std::string& s, unsigned long& out);
 
 private:
