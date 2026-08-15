@@ -149,12 +149,6 @@ followed by the `Cookie` request header on the reload.
 
 ### Tests
 
-```bash
-make test                                        # curl smoke suite
-tests/scripts/run-siege.sh                       # stress test (needs siege)
-tests/scripts/run-valgrind.sh conf/default.conf  # memory and fd leak check
-```
-
 The server has been verified with `valgrind --leak-check=full --track-fds=yes`
 (no leaked bytes, no leaked descriptors) and with `siege -b` (availability above
 99.5%, stable memory and descriptor count over long runs).
