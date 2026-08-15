@@ -13,7 +13,7 @@ The server is **single-threaded and fully non-blocking**. Every socket and every
 CGI pipe is driven by one `poll()` call in the main event loop: the loop asks
 `poll()` which file descriptors are ready for reading or writing, and only then
 performs the corresponding I/O. Nothing ever blocks, and no request can stall
-the server for another client.config/ 
+the server for another client.
 
 Behaviour is entirely driven by an nginx-inspired configuration file, so the same
 binary can serve very different setups without recompiling.
@@ -175,13 +175,6 @@ The server has been verified with `valgrind --leak-check=full --track-fds=yes`
   `poll()` scale better than one thread per client
 - [nginx documentation](https://nginx.org/en/docs/) — used as the reference for
   configuration syntax and response behaviour
-
-### Internal documentation
-
-- [`docs/architecture.md`](docs/architecture.md) — module overview
-- [`docs/architecture-detailed.md`](docs/architecture-detailed.md) — full
-  walkthrough of every class
-- [`docs/testing.md`](docs/testing.md) — test strategy
 
 ### Use of AI
 
