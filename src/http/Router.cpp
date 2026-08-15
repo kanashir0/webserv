@@ -162,6 +162,7 @@ Response Router::handleSession(const Request& req) {
 		"<link rel=\"stylesheet\" href=\"/style.css\">\r\n"
 		"</head>\r\n"
 		"<body>\r\n"
+		"<main id=\"galaxy\"></main>\r\n"
 		"<h1>Session demo</h1>\r\n"
 		"<p>Session id: <code>" + session.id() + "</code></p>\r\n"
 		"<p>This is visit number <strong>" + visitsText + "</strong>.</p>\r\n"
@@ -171,6 +172,7 @@ Response Router::handleSession(const Request& req) {
 		"<p>Reload the page to see the counter go up, or clear the "
 		"<code>sid</code> cookie to start a new session.</p>\r\n"
 		"<p><a href=\"/\">Back to the index</a></p>\r\n"
+		"<script src=\"/main.js\"></script>\r\n"
 		"</body>\r\n"
 		"</html>\r\n";
 

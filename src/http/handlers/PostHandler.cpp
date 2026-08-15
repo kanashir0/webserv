@@ -128,6 +128,7 @@ static std::string uploadedPage(const std::string& fileUri,
 	       "<link rel=\"stylesheet\" href=\"/style.css\">\r\n"
 	       "</head>\r\n"
 	       "<body>\r\n"
+		   "<main id=\"galaxy\"></main>\r\n"
 	       "<h1>File uploaded</h1>\r\n"
 	       "<p><code>" + safeName + "</code> was stored on the server.</p>\r\n"
 	       "<ul>\r\n"
@@ -136,6 +137,7 @@ static std::string uploadedPage(const std::string& fileUri,
 	           "\">Browse the upload directory</a></li>\r\n"
 	       "<li><a href=\"/\">Back to the index</a></li>\r\n"
 	       "</ul>\r\n"
+		   "<script src=\"/main.js\"></script>\r\n"
 	       "</body>\r\n"
 	       "</html>\r\n";
 }
