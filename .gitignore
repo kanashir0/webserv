@@ -15,8 +15,4 @@ valgrind.log
 .DS_Store
 .vscode/
 .idea/
-docs/internal.md
-docs/checklist.md
-openspec/
-.claude/commands/opsx/
-.claude/skills/openspec-*/
+
