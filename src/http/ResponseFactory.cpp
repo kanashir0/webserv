@@ -255,6 +255,7 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 		"<link rel=\"stylesheet\" href=\"/style.css\">\r\n"
 		"</head>\r\n"
 		"<body>\r\n"
+		"<main id=\"galaxy\"></main>\r\n"
 		"<header class=\"hero\">\r\n"
 		"<h1>Index of " + escapedBase + "</h1>\r\n"
 		"</header>\r\n"
@@ -278,6 +279,7 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 		"</ul>\r\n"
 		"</section>\r\n"
 		"<p class=\"back\"><a href=\"/\">&larr; Back to the index</a></p>\r\n"
+		"<script src=\"/main.js\"></script>\r\n"
 		"</body>\r\n"
 		"</html>\r\n";
 
