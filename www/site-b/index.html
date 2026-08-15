@@ -6,12 +6,18 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<h1>Site B</h1>
-<p>
-	You are looking at the <strong>second virtual host</strong>. It shares the
-	same interface and port as the main site &mdash; the server picked it using
-	the <code>Host</code> request header.
-</p>
-<pre>curl -H "Host: site-b.local" http://127.0.0.1:8080/</pre>
+<header class="hero">
+	<h1>Site B</h1>
+	<p class="lede">
+		You are looking at the <strong>second virtual host</strong>. It shares the
+		same interface and port as the main site &mdash; the server picked it using
+		the <code>Host</code> request header.
+	</p>
+</header>
+
+<section>
+	<h2>How to reach it</h2>
+	<pre><code>curl -H "Host: site-b.local" http://127.0.0.1:8080/</code></pre>
+</section>
 </body>
 </html>
