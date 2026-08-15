@@ -252,10 +252,13 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 		"<head>\r\n"
 		"<meta charset=\"utf-8\">\r\n"
 		"<title>Index of " + escapedBase + "</title>\r\n"
+		"<link rel=\"stylesheet\" href=\"/style.css\">\r\n"
 		"</head>\r\n"
 		"<body>\r\n"
+		"<header class=\"hero\">\r\n"
 		"<h1>Index of " + escapedBase + "</h1>\r\n"
-		"<hr>\r\n"
+		"</header>\r\n"
+		"<section>\r\n"
 		"<ul>\r\n";
 
 	if (baseUri != "/") {
@@ -273,8 +276,8 @@ Response ResponseFactory::makeAutoindex(const std::string& fsPath,
 
 	page +=
 		"</ul>\r\n"
-		"<hr>\r\n"
-		"<p>webserv</p>\r\n"
+		"</section>\r\n"
+		"<p class=\"back\"><a href=\"/\">&larr; Back to the index</a></p>\r\n"
 		"</body>\r\n"
 		"</html>\r\n";
 

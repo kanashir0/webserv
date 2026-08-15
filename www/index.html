@@ -6,8 +6,10 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<h1>webserv</h1>
-<p>An HTTP/1.1 server written in C++98 for the 42 curriculum.</p>
+<header class="hero">
+	<h1>webserv</h1>
+	<p class="lede">An HTTP/1.1 server written in C++98 for the 42 curriculum.</p>
+</header>
 
 <nav>
 	<a href="/about.html">About</a>
@@ -17,19 +19,23 @@
 	<a href="/cgi-bin/hello.py">CGI</a>
 </nav>
 
-<h2>Try it</h2>
-<ul>
-	<li><a href="/old">/old</a> &mdash; permanent redirect back to this page</li>
-	<li><a href="/files/">/files/</a> &mdash; directory listing (autoindex)</li>
-	<li><a href="/nope">/nope</a> &mdash; custom 404 page</li>
-	<li><a href="/cgi-bin/hello.py">/cgi-bin/hello.py</a> &mdash; CGI script</li>
-	<li><a href="/session">/session</a> &mdash; cookie-backed session counter</li>
-</ul>
+<section>
+	<h2>Try it</h2>
+	<div class="grid">
+		<a class="card" href="/old"><code>/old</code><span>permanent redirect back to this page</span></a>
+		<a class="card" href="/files/"><code>/files/</code><span>directory listing (autoindex)</span></a>
+		<a class="card" href="/nope"><code>/nope</code><span>custom 404 page</span></a>
+		<a class="card" href="/cgi-bin/hello.py"><code>/cgi-bin/hello.py</code><span>CGI script</span></a>
+		<a class="card" href="/session"><code>/session</code><span>cookie-backed session counter</span></a>
+	</div>
+</section>
 
-<h2>Upload a file</h2>
-<form action="/upload/" method="post" enctype="multipart/form-data">
-	<input type="file" name="file">
-	<button type="submit">Upload</button>
-</form>
+<section>
+	<h2>Upload a file</h2>
+	<form action="/upload/" method="post" enctype="multipart/form-data">
+		<input type="file" name="file">
+		<button type="submit">Upload</button>
+	</form>
+</section>
 </body>
 </html>
