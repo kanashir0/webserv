@@ -69,6 +69,9 @@ and the build is warning-free.
 | <http://127.0.0.1:8080/nope> | Custom `404` page |
 | <http://127.0.0.1:8080/upload/> | File upload and download |
 | <http://127.0.0.1:8080/cgi-bin/hello.py> | CGI script |
+| <http://127.0.0.1:8080/cgi-bin/env_dump.py?a=1&b=2> | CGI environment: `QUERY_STRING`, `HTTP_*` headers |
+| <http://127.0.0.1:8080/cgi-bin/post_echo.py> | `POST` body reaching the script on stdin |
+| <http://127.0.0.1:8080/cgi-bin/relative.py> | CGI running in its own directory (reads `data.txt` by relative path) |
 | <http://127.0.0.1:8080/session> | Session/cookie demo (bonus) |
 | <http://127.0.0.2:8081/> | Second site on another interface |
 

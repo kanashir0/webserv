@@ -4,13 +4,11 @@
 #include "http/Router.hpp"
 #include "http/ResponseFactory.hpp"
 #include "common/HttpStatus.hpp"
-#include "session/SessionStore.hpp"
 #include <ctime>
 
 Client::Client(int fd,
                std::vector<ServerConfig>& vhosts,
                Router& router,
-               SessionStore& sessions,
                EventLoop& loop)
 	: fd_(fd)
 	, state_(READING_HEADERS)
@@ -25,7 +23,6 @@ Client::Client(int fd,
 	, closeAfterWrite_(false)
 	, vhosts_(vhosts)
 	, router_(router)
-	, sessions_(sessions)
 	, loop_(loop)
 	, cgi_(0)
 {}

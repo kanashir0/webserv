@@ -16,7 +16,6 @@
 #include <cerrno>
 
 class Router;
-class SessionStore;
 class EventLoop;
 class CgiHandler;
 
@@ -32,7 +31,6 @@ public:
 	Client(int fd,
 	       std::vector<ServerConfig>& vhosts,
 	       Router& router,
-	       SessionStore& sessions,
 	       EventLoop& loop);
 	~Client();
 
@@ -70,7 +68,6 @@ private:
 
 	std::vector<ServerConfig>&       vhosts_;
 	Router&                          router_;
-	SessionStore&                    sessions_;
 	EventLoop&                       loop_;
 	CgiHandler*                      cgi_;   // pertence ao EventLoop, nao ao Client
 

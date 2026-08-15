@@ -146,6 +146,16 @@ curl -i http://127.0.0.1:8080/cgi-bin/broken.py                 # 502 (script mo
 curl -i http://127.0.0.1:8080/cgi-bin/loop.py                   # 504 após 10s
 curl -i http://127.0.0.1:8080/                                  # servidor continua vivo
 
+# CGI: "a requisição completa e os argumentos do cliente estão disponíveis"
+curl -i "http://127.0.0.1:8080/cgi-bin/env_dump.py?a=1&b=2"     # QUERY_STRING + headers HTTP_*
+curl -i -X POST --data-binary "corpo" http://127.0.0.1:8080/cgi-bin/post_echo.py   # body no stdin
+# chunked: o parser desmonta antes de entregar, o script recebe o body inteiro
+curl -i -X POST -H "Transfer-Encoding: chunked" -H "Expect:" \
+     --data-binary "corpo-chunked" http://127.0.0.1:8080/cgi-bin/post_echo.py
+
+# CGI: "executado no diretório correto para acesso a arquivos de caminho relativo"
+curl -i http://127.0.0.1:8080/cgi-bin/relative.py               # CWD=.../cgi-bin + conteúdo de data.txt
+
 # virtual host e segunda interface
 curl -i -H "Host: site-b.local" http://127.0.0.1:8080/
 curl -i http://127.0.0.2:8081/

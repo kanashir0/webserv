@@ -176,7 +176,8 @@ SERVER_NAME / SERVER_PORT     SCRIPT_NAME       PATH_INFO (vazio)
 
 `Content-Length` e `Content-Type` saem **sem** o prefixo `HTTP_`, como manda a RFC, e
 por isso são pulados no laço ([:61](../../src/cgi/CgiEnv.cpp#L61)). Demonstração ao
-vivo: `tests/cgi/env_dump.py` imprime o ambiente recebido.
+vivo: `cgi-bin/env_dump.py` imprime o ambiente recebido e `cgi-bin/post_echo.py`
+devolve o body que chegou pelo stdin.
 
 ---
 

@@ -117,6 +117,20 @@ check "CGI erro 502"     "502" curl_status "http://$HOST/cgi-bin/exit.py"
 check "CGI travado 504"  "504" sh -c \
 	"curl -s -o /dev/null --max-time 20 -w '%{http_code}' 'http://$HOST/cgi-bin/loop.py'"
 
+# A requisicao completa chega ao script: body no stdin e QUERY_STRING no ambiente.
+check "CGI body no stdin" "webserv-body" sh -c \
+	"curl -s --max-time 10 -X POST --data-binary 'webserv-body' 'http://$HOST/cgi-bin/post_echo.py' | tail -1"
+# Body em chunks: o parser desmonta antes de entregar ao script, entao o
+# CONTENT_LENGTH que o script le e o tamanho real do body.
+check "CGI body chunked" "webserv-chunked" sh -c \
+	"curl -s --max-time 10 -X POST -H 'Transfer-Encoding: chunked' -H 'Expect:' --data-binary 'webserv-chunked' 'http://$HOST/cgi-bin/post_echo.py' | tail -1"
+check "CGI QUERY_STRING" "QUERY_STRING=a=1&b=2" sh -c \
+	"curl -s --max-time 10 'http://$HOST/cgi-bin/env_dump.py?a=1&b=2' | grep '^QUERY_STRING='"
+# O chdir poe o script no proprio diretorio: data.txt abre por caminho relativo.
+check "CGI cwd relativo" "200" curl_status "http://$HOST/cgi-bin/relative.py"
+check "CGI le data.txt"  "relative-file-ok" sh -c \
+	"curl -s --max-time 10 'http://$HOST/cgi-bin/relative.py' | grep -o 'relative-file-ok'"
+
 # --- redirect e autoindex ----------------------------------------------
 check "redirect 301"     "301" curl_status "http://$HOST/old"
 check "redirect segue"   "200" curl_status -L "http://$HOST/old"

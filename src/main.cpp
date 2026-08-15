@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
 		SessionStore sessions;
 		Router       router(sessions);
-		Server       server(configs, router);
+		Server       server(configs, router, sessions);
 
 		LOG_INFO("webserv starting");
 		server.start();
