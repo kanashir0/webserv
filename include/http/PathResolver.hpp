@@ -14,6 +14,10 @@ public:
 
 	static std::string joinPath(const std::string& root, const std::string& rel);
 
+	// O CGI faz chdir() para o diretorio do script antes do execve, entao
+	// caminhos relativos do config precisam ser fixados contra o cwd de origem.
+	static std::string toAbsolute(const std::string& path);
+
 	static bool percentDecode(const std::string& raw, std::string& out);
 
 	static std::string encodeSegment(const std::string& segment);

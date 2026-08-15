@@ -2,6 +2,8 @@
 #include "common/HttpStatus.hpp"
 #include "common/Logger.hpp"
 #include "common/Types.hpp"
+#include <climits>
+#include <unistd.h>
 
 
 static int hexValue(char c) {
@@ -120,6 +122,20 @@ std::string PathResolver::joinPath(const std::string& root, const std::string& r
 		return base + rel;
 	}
 	return base + "/" + rel;
+}
+
+std::string PathResolver::toAbsolute(const std::string& path) {
+	if (!path.empty() && path[0] == '/') {
+		return path;
+	}
+	char buffer[PATH_MAX];
+	if (getcwd(buffer, sizeof(buffer)) == 0) {
+		LOG_ERROR("PathResolver: getcwd falhou ao resolver \"" + path + "\"");
+		return path;
+	}
+	std::string joined = joinPath(std::string(buffer), path);
+	std::string normalized;
+	return normalizePath(joined, normalized) ? normalized : joined;
 }
 
 int PathResolver::resolve(const std::string& rawPath,

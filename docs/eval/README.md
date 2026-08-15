@@ -31,12 +31,14 @@ main.cpp  →  ConfigParser  →  vector<ServerConfig>
         ║  despacha por revents            ║
         ╚══════════════╦═══════════════════╝
                        │
-      ┌────────────────┼────────────────────┐
-      ▼                ▼                    ▼
-ListeningSocket      Client              CgiHandler
-accept() → Client   recv/send           write no stdin do script
-                    parser + router     read do stdout do script
+      ┌───────────────┼───────────────┬────────────────┐
+      ▼               ▼               ▼                ▼
+ListeningSocket     Client        CgiHandler     CgiStdinPump
+accept() → Client  recv/send      read do stdout  write no stdin
+                   parser+router  do script       do script
 ```
+
+O CGI ocupa **dois** pollables porque são dois FDs, e a interface cobre um cada.
 
 Qualquer objeto com um file descriptor implementa `IPollable`
 ([include/core/IPollable.hpp](../../include/core/IPollable.hpp)):
@@ -95,7 +97,7 @@ READING_HEADERS ──(CGI)──► WAITING_CGI ──► WRITING_RESPONSE ─�
 | Retorno de `recv` tratado (0 **e** -1) | [Client.cpp:64](../../src/core/Client.cpp#L64) | `if (ret <= 0)` cobre EOF e erro |
 | **Nunca** `errno` após I/O | — | `grep -rn errno src/` → só `socket/bind/listen/fcntl` e `poll` |
 | `fork()` só para CGI | [CgiHandler.cpp:98](../../src/cgi/CgiHandler.cpp#L98) | `grep -rn "fork(" src/` → uma só chamada (a outra linha é um log) |
-| `fcntl` só `F_SETFL`/`O_NONBLOCK` | [Socket.cpp:58](../../src/common/Socket.cpp#L58), [CgiHandler.cpp:118](../../src/cgi/CgiHandler.cpp#L118) | sem `F_GETFL` em lugar nenhum |
+| `fcntl` só `F_SETFL`/`O_NONBLOCK` | [Socket.cpp:58](../../src/common/Socket.cpp#L58), [CgiHandler.cpp:114](../../src/cgi/CgiHandler.cpp#L114) | sem `F_GETFL` em lugar nenhum |
 | Sem threads | — | `grep -rn pthread src/` → vazio |
 | Compila sem religação | [Makefile](../../Makefile) | `make` duas vezes: a segunda não recompila |
 | Páginas de erro padrão | [ResponseFactory.cpp:105](../../src/http/ResponseFactory.cpp#L105) | comentar `error_page` no .conf e ver a página embutida |
@@ -105,12 +107,12 @@ READING_HEADERS ──(CGI)──► WAITING_CGI ──► WRITING_RESPONSE ─�
 | Limite de body do cliente | [Client.cpp:155](../../src/core/Client.cpp#L155) + [RequestParser.cpp:244](../../src/http/RequestParser.cpp#L244) | 413 no server (1m) e na location (10m) |
 | Rotas para diretórios diferentes | [PathResolver.cpp:125](../../src/http/PathResolver.cpp#L125) | `root` por location |
 | Arquivo default de diretório | [GetHandler.cpp:48](../../src/http/handlers/GetHandler.cpp#L48) | `index index.html` |
-| Métodos aceitos por rota | [Router.cpp:133](../../src/http/Router.cpp#L133) | 405 + header `Allow` |
+| Métodos aceitos por rota | [Router.cpp:137](../../src/http/Router.cpp#L137) | 405 + header `Allow` |
 | GET / POST / DELETE | `src/http/handlers/` | seção 5 |
-| Método desconhecido não derruba | [Router.cpp:95](../../src/http/Router.cpp#L95) | `curl -X PUT` → 405 |
+| Método desconhecido não derruba | [Router.cpp:92](../../src/http/Router.cpp#L92) | `curl -X PUT` → 405 |
 | Upload de arquivos | [PostHandler.cpp:159](../../src/http/handlers/PostHandler.cpp#L159) | `upload_store` |
 | CGI roda no diretório certo | [CgiHandler.cpp:68](../../src/cgi/CgiHandler.cpp#L68) | `chdir(directoryOf(script))` antes do `execve` |
-| CGI com erro / loop infinito | [CgiHandler.cpp:203](../../src/cgi/CgiHandler.cpp#L203) | 502 e 504, servidor continua vivo |
+| CGI com erro / loop infinito | [CgiHandler.cpp:191](../../src/cgi/CgiHandler.cpp#L191) | 502 e 504, servidor continua vivo |
 | Siege > 99.5% | [tests/scripts/run-siege.sh](../../tests/scripts/run-siege.sh) | seção 7 |
 | Sem leaks de memória e de FD | [tests/scripts/run-valgrind.sh](../../tests/scripts/run-valgrind.sh) | `--track-fds=yes` |
 
@@ -128,7 +130,7 @@ curl -i http://127.0.0.1:8080/upload/nope            # 404 (error_page da locati
 curl -i -X PUT http://127.0.0.1:8080/                # 405 + Allow: GET
 curl -i http://127.0.0.1:8080/old                    # 301 → /
 curl -i http://127.0.0.1:8080/files/                 # autoindex on
-curl -i http://127.0.0.1:8080/errors/                # 403: autoindex off, sem index
+curl -i http://127.0.0.1:8080/errors/                # 404: autoindex off, sem index
 
 # upload + download + delete
 curl -i -X POST --data-binary @arquivo.txt http://127.0.0.1:8080/upload/arquivo.txt
@@ -191,15 +193,15 @@ listar `/files/`, e testar a URL errada.
 | 204 | DELETE bem-sucedido | `DeleteHandler` |
 | 301 / 302 | `return` da location; diretório sem `/` final | `makeRedirect`, `GetHandler` |
 | 400 | request line/headers inválidos, sem `Host`, `Content-Length` duplicado, percent-encoding inválido | `RequestParser`, `PathResolver` |
-| 403 | sem permissão, diretório sem index e sem autoindex, path traversal, POST sem `upload_store` | `GetHandler`, `PathResolver`, `PostHandler` |
-| 404 | arquivo/location inexistente | `Router`, handlers |
+| 403 | sem permissão, path traversal, POST sem `upload_store` | `GetHandler`, `PathResolver`, `PostHandler` |
+| 404 | arquivo/location inexistente; diretório sem index e sem autoindex | `Router`, handlers |
 | 405 | método fora de `methods` (com header `Allow`) | `Router::route` |
 | 408 | conexão ociosa por 60s | `Client::checkTimeout` |
 | 411 | POST sem `Content-Length` nem `chunked` | `RequestParser::parseHeaders` |
 | 413 | body acima de `client_max_body_size` | `RequestParser` |
 | 414 | URI acima de 8192 bytes | `RequestParser::parseRequestLine` |
 | 500 | erro interno (exceção, root ausente) | `Router`, `ResponseFactory` |
-| 502 | CGI sem headers válidos ou que morreu sem escrever | `makeFromCgi` |
+| 502 | CGI sem headers válidos ou que morreu sem escrever (vira 404 se o script não existe) | `makeFromCgi`, `CgiHandler::buildResponse` |
 | 504 | CGI ultrapassou 10s | `CgiHandler::checkTimeout` |
 | 505 | versão HTTP diferente de 1.0/1.1 | `RequestParser` |
 
@@ -256,10 +258,17 @@ Não. `recv`/`send`/`read`/`write` retornando erro fecham a conexão, sem consul
 inicialização, permitido) e depois de `poll()`, para distinguir `EINTR`.
 
 **O CGI não bloqueia o servidor?**
-Não. `CgiHandler` é um `IPollable`: o pai fica com a ponta de escrita do stdin e a
-de leitura do stdout do filho, ambas `O_NONBLOCK`, e o `poll()` decide quando
-escrever o body e quando ler a saída. Enquanto o script roda, o servidor atende
-outros clientes normalmente. Timeout de 10s → `SIGKILL` + 504.
+Não. O pai fica com a ponta de escrita do stdin e a de leitura do stdout do filho,
+ambas `O_NONBLOCK`, e cada uma vira um `IPollable`: `CgiHandler` lê o stdout,
+`CgiStdinPump` escreve o body. Enquanto o script roda, o servidor atende outros
+clientes normalmente. Timeout de 10s → `SIGKILL` + 504.
+
+**Por que dois pollables para um script só?**
+Porque `IPollable` cobre um FD e os dois precisam ser vigiados ao mesmo tempo. Um
+script que ecoa o body enche o próprio stdout, para de ler o stdin e trava quem só
+estiver esperando `POLLOUT` — foi exatamente o deadlock que apareceu com um POST de
+100 MB. Os dois objetos se soltam por `detachOwner()`/`onStdinClosed()`, porque o
+`EventLoop` deleta cada pollable de forma independente.
 
 **Ler o arquivo de configuração e os arquivos estáticos não trava o loop?**
 Arquivo regular em disco é exceção explícita da régua, e I/O em disco não retorna
@@ -294,8 +303,14 @@ vale o primeiro bloco daquele endpoint (mesma regra do Nginx: default server).
 - **`client_max_body_size 0` significa ilimitado**, nos dois níveis — não "herda".
 - **A sessão (bônus) não é criptográfica**: id de 32 hex a partir de relógio,
   contador e `rand()`. Serve para a demonstração, não para autenticação.
-- **`PATH_INFO` é sempre vazio**: não implementamos o split de path extra depois do
-  nome do script.
+- **`PATH_INFO` carrega o caminho da URI**, não o split da RFC 3875 (que aqui seria
+  vazio, já que a URI termina no próprio script). `PATH_TRANSLATED` leva o caminho
+  em disco. É a convenção que o `cgi_tester` da avaliação exige — sem ela ele
+  responde `500 PATH_INFO not found`.
+- **O body é bufferizado inteiro em memória** — parser, `Request`, saída do CGI e
+  buffer de envio somam ~6 cópias, medidas em 590 MB de pico para um POST de 100 MB.
+  Passa no tester, mas é o limite conhecido: streamar a saída do CGI direto para o
+  socket é a correção, e ficou fora do escopo da entrega.
 - **`ConfigParser` usa cadeia de `if/else if`** em vez de tabela de despacho. Foi
   avaliado e adiado: são ~14 funções novas contra 141 linhas que funcionam e têm 26
   configs inválidas cobrindo cada validação.

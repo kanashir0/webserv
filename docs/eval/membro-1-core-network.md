@@ -5,7 +5,8 @@
 
 **Arquivos:** [EventLoop](../../src/core/EventLoop.cpp) · [Server/ListeningSocket](../../src/core/Server.cpp) ·
 [Client](../../src/core/Client.cpp) · [Socket](../../src/common/Socket.cpp) ·
-[FileDescriptor](../../src/common/FileDescriptor.cpp) · [CgiHandler](../../src/cgi/CgiHandler.cpp)
+[FileDescriptor](../../src/common/FileDescriptor.cpp) · [CgiHandler](../../src/cgi/CgiHandler.cpp) ·
+[CgiStdinPump](../../src/cgi/CgiStdinPump.cpp)
 
 ---
 
@@ -58,8 +59,8 @@ while (running_) {
 - **Índice `i` de `fds` casa com `pollables_[i]`** porque nada é removido durante o
   despacho: quem quer morrer seta `wantsClose_` e só é deletado em `reapClosed()`,
   depois do laço ([:80](../../src/core/EventLoop.cpp#L80)). Callbacks podem
-  *adicionar* (o `CgiHandler`), e isso é seguro: o novo entra no fim e só é
-  observado na próxima iteração.
+  *adicionar* (um CGI acrescenta dois: `CgiHandler` e `CgiStdinPump`), e isso é
+  seguro: os novos entram no fim e só são observados na próxima iteração.
 - **Dono da memória.** O destrutor deleta todos os `IPollable*`
   ([:4](../../src/core/EventLoop.cpp#L4)) — é por isso que o valgrind fecha em zero.
 
@@ -168,43 +169,59 @@ location perder para o valor do server.
 pipe(in) ; pipe(out) ; fork()
  ├── filho  : dup2(in[0]→stdin), dup2(out[1]→stdout), fecha as 4 pontas,
  │            chdir(diretório do script), execve(interpretador, script, envp)
- └── pai    : fica com in[1] (escrita) e out[0] (leitura), ambos O_NONBLOCK,
-              loop.add(this)  → entra no poll() como mais um IPollable
+ └── pai    : in[1] (escrita) e out[0] (leitura), ambos O_NONBLOCK, viram
+              DOIS IPollable no mesmo poll() — um FD cada
 ```
 
-**Fases** (`fd()` e `interest()` mudam conforme a fase):
+**Os dois pollables:**
 
-| Fase | FD observado | Evento | O que faz |
+| Objeto | FD | Evento | O que faz |
 |---|---|---|---|
-| `WRITING_INPUT` | `stdinPipe_` | `POLLOUT` | escreve o body em blocos de 4 KB ([:146](../../src/cgi/CgiHandler.cpp#L146)) |
-| `READING_OUTPUT` | `stdoutPipe_` | `POLLIN` | acumula o stdout ([:181](../../src/cgi/CgiHandler.cpp#L181)) |
-| `FINISHED` | — | `0` | resposta entregue; `wantsClose()` → `reapClosed()` deleta |
+| `CgiHandler` | `stdoutPipe_` | `POLLIN` | acumula o stdout até EOF ([:160](../../src/cgi/CgiHandler.cpp#L160)) |
+| `CgiStdinPump` | ponta de escrita | `POLLOUT` | escreve o body em blocos de 64 KB ([CgiStdinPump.cpp:33](../../src/cgi/CgiStdinPump.cpp#L33)) |
+
+**Por que dois, e não um com duas fases** — é a pergunta mais provável desta seção.
+Antes o `CgiHandler` escrevia todo o stdin para só depois ler o stdout. Um script que
+ecoa o body enche o próprio stdout, para de ler o stdin, e o servidor fica esperando
+um `POLLOUT` que nunca chega: deadlock até o timeout de 10 s virar 504. Aparece com
+qualquer body maior que o buffer do pipe (~64 KB). Como `IPollable` cobre um FD, a
+escrita virou um segundo objeto e os dois são vigiados na mesma chamada de `poll()`.
+
+Eles se soltam em mão dupla, porque o `EventLoop` deleta cada pollable de forma
+independente: o pump avisa `onStdinClosed()` ao terminar ([:140](../../src/cgi/CgiHandler.cpp#L140))
+e o handler chama `detachOwner()` se acabar primeiro ([:142](../../src/cgi/CgiHandler.cpp#L142)).
+Nenhum dos dois fica com ponteiro para um objeto morto — é o mesmo idioma do
+`Client`/`CgiHandler`.
 
 **Detalhes que valem ponto:**
 
 - **`chdir` antes do `execve`** ([:68](../../src/cgi/CgiHandler.cpp#L68)): a régua
   exige que o CGI rode no diretório correto para caminhos relativos. O `argv[1]` é
-  só o nome do arquivo, já que o cwd é o diretório dele.
+  só o nome do arquivo, já que o cwd é o diretório dele. **Consequência:** o
+  interpretador e o script são convertidos para caminho absoluto no construtor, antes
+  do `fork` ([:41](../../src/cgi/CgiHandler.cpp#L41)) — um `cgi .bla ./cgi_tester` no
+  config seria resolvido a partir do novo cwd e o `execve` falharia.
 - **O filho fecha as quatro pontas originais** ([:62](../../src/cgi/CgiHandler.cpp#L62)):
   se ele mantivesse a ponta de escrita do próprio stdin, nunca veria EOF.
-- **EOF é o fim do body** (subject): terminado o envio, `stopWritingInput()` fecha
-  `stdinPipe_` — é o fechamento que sinaliza EOF ao script. Sem body, fechamos já no
-  `start()`. Requisições `chunked` chegam ao script já desmontadas, porque o parser
-  entrega `req.body()` pronto.
+- **EOF é o fim do body** (subject): terminado o envio, o pump fecha a sua ponta — é
+  o fechamento que sinaliza EOF ao script. Sem body, nem chega a existir pump: o FD
+  fecha no `start()`. Requisições `chunked` chegam ao script já desmontadas, porque o
+  parser entrega `req.body()` pronto.
 - **EOF também marca o fim da saída**: lemos até `read()` devolver `<= 0`; aí
-  `ResponseFactory::makeFromCgi` monta a resposta. Se o script não mandou
-  `Content-Length`, ele é calculado por `setBody()`.
-- **`POLLHUP` no stdout** ([:190](../../src/cgi/CgiHandler.cpp#L190)) chega junto
+  `buildResponse()` ([:176](../../src/cgi/CgiHandler.cpp#L176)) monta a resposta. Se o
+  script não mandou `Content-Length`, ele é calculado por `setBody()`.
+- **`POLLHUP` no stdout** ([:169](../../src/cgi/CgiHandler.cpp#L169)) chega junto
   com o que ainda está no buffer do kernel: fazemos uma leitura por evento e só
   encerramos quando ela devolver 0 — senão perderíamos a saída de scripts rápidos.
-- **Timeout de 10 s** ([:203](../../src/cgi/CgiHandler.cpp#L203)) → 504. `loop.py`
+- **Timeout de 10 s** ([:191](../../src/cgi/CgiHandler.cpp#L191)) → 504. `loop.py`
   (laço infinito) demonstra.
-- **`reapChild()`** ([:235](../../src/cgi/CgiHandler.cpp#L235)): `waitpid(WNOHANG)`;
+- **`reapChild()`** ([:223](../../src/cgi/CgiHandler.cpp#L223)): `waitpid(WNOHANG)`;
   se o filho ainda estiver vivo, `SIGKILL` + `waitpid` bloqueante (que retorna na
   hora, porque `SIGKILL` não pode ser ignorado). Nenhum zumbi sobrevive ao siege.
 - **Cliente que desiste no meio**: `~Client` chama `detachClient()`, que mata o
   script e zera o ponteiro — o `CgiHandler` nunca escreve numa `Request` destruída
-  ([Client.cpp:33](../../src/core/Client.cpp#L33)).
+  ([Client.cpp:33](../../src/core/Client.cpp#L33)). O mesmo caminho solta o pump, que
+  também lê o body a partir da `Request`.
 
 ---
 

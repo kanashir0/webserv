@@ -43,7 +43,11 @@ void CgiEnv::build(const Request& req,
 	add("QUERY_STRING",    req.query());
 	add("SCRIPT_NAME",     req.path());
 	add("SCRIPT_FILENAME", scriptPath);
-	add("PATH_INFO",       "");
+	// A RFC deixaria PATH_INFO vazio quando a URI termina no proprio script,
+	// mas o cgi_tester da avaliacao recusa rodar sem ele e exige que bata com
+	// a URI pedida. PATH_TRANSLATED e essa mesma URI mapeada para o disco.
+	add("PATH_INFO",       req.path());
+	add("PATH_TRANSLATED", scriptPath);
 
 	// php-cgi recusa rodar sem esta variavel (protecao contra invocacao direta).
 	add("REDIRECT_STATUS", "200");

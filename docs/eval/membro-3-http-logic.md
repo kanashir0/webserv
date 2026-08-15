@@ -13,7 +13,7 @@
 
 ## 1. `Router::route()` — a ordem das decisões
 
-[src/http/Router.cpp:59](../../src/http/Router.cpp#L59)
+[src/http/Router.cpp:58](../../src/http/Router.cpp#L58)
 
 ```cpp
 findLocation(path)          → 0?            → 404
@@ -31,37 +31,48 @@ método == GET / POST / DELETE               → handler
   métodos; o Nginx se comporta igual.
 - **405 antes de olhar o disco**: não faz sentido procurar arquivo para um método
   que a rota não aceita. O header `Allow` sai da própria diretiva `methods`
-  ([:36](../../src/http/Router.cpp#L36)), como manda a RFC 7231 §6.5.5.
+  ([:35](../../src/http/Router.cpp#L35)), como manda a RFC 7231 §6.5.5.
 - **CGI antes do despacho por método**: o mesmo script atende GET e POST; quem
   decide é a extensão, não o verbo.
-- **`methods` ausente = todos permitidos** ([:133](../../src/http/Router.cpp#L133)),
+- **`methods` ausente = todos permitidos** ([:137](../../src/http/Router.cpp#L137)),
   mesma semântica de "sem restrição".
 - **Todo o corpo do `route()` está dentro de um `try/catch`**
-  ([:98](../../src/http/Router.cpp#L98)): qualquer exceção vira 500, nunca um crash.
+  ([:94](../../src/http/Router.cpp#L94)): qualquer exceção vira 500, nunca um crash.
   A régua zera a nota por terminação inesperada — este é o cinto de segurança.
 
-`prepareCgi()` ([:108](../../src/http/Router.cpp#L108)) não executa nada: resolve o
-caminho, confirma que é arquivo regular (senão 404/403) e preenche o `CgiTarget`.
-Quem faz `fork()` é o M1. `CgiTarget::active()` é o sinal para o `Client` de que a
-`Response` devolvida deve ser descartada.
+`prepareCgi()` ([:103](../../src/http/Router.cpp#L103)) não executa nada: resolve o
+caminho, valida e preenche o `CgiTarget`. Quem faz `fork()` é o M1.
+`CgiTarget::active()` é o sinal para o `Client` de que a `Response` devolvida deve
+ser descartada.
+
+Duas decisões defensáveis aqui:
+
+- **Diretório vira 403, mas arquivo ausente não vira 404.** O programa CGI é o
+  handler da extensão e decide sozinho o que fazer com um alvo que não existe — o
+  `cgi_tester` da avaliação, por exemplo, responde 200 sem nunca abrir o arquivo. A
+  rede de segurança fica no `CgiHandler::buildResponse()`, que converte o 502 em 404
+  quando o script não produziu resposta **e** o alvo realmente não existe. É assim
+  que um `.py` inexistente continua respondendo 404 em vez de 502.
+- **`access(X_OK)` no interpretador** ([:125](../../src/http/Router.cpp#L125)) → 500
+  com log explícito. Sem isso, um `cgi` mal configurado aparece só como um 502 mudo.
 
 ---
 
 ## 2. `PathResolver` — URL → caminho em disco (e a segurança)
 
-[src/http/PathResolver.cpp:125](../../src/http/PathResolver.cpp#L125)
+[src/http/PathResolver.cpp:141](../../src/http/PathResolver.cpp#L141)
 
 ```
 percentDecode  →  normalizePath  →  escolhe root  →  strip do prefixo  →  join
 ```
 
-- **`percentDecode`** ([:14](../../src/http/PathResolver.cpp#L14)): `%XX` inválido →
+- **`percentDecode`** ([:16](../../src/http/PathResolver.cpp#L16)): `%XX` inválido →
   400; `%00` é rejeitado (truncaria o caminho no `open`).
-- **`normalizePath`** ([:36](../../src/http/PathResolver.cpp#L36)): resolve `.` e
+- **`normalizePath`** ([:38](../../src/http/PathResolver.cpp#L38)): resolve `.` e
   `..`; se um `..` tentar subir acima da raiz, devolve falso → **403**. É a defesa
   contra path traversal (`GET /../../etc/passwd`). Decodificar **antes** de
   normalizar é o que impede o bypass com `%2e%2e%2f`.
-- **Escolha do root** ([:141](../../src/http/PathResolver.cpp#L141)): a location tem
+- **Escolha do root** ([:157](../../src/http/PathResolver.cpp#L157)): a location tem
   `root`? usa o dela e remove o prefixo da location do caminho. Senão usa o do
   server e mantém o caminho inteiro.
 
@@ -80,7 +91,7 @@ resolve → stat
   │      ├── URL sem "/" final  → 301 para a URL com "/" (preserva a query)
   │      ├── existe o `index`?  → serve o arquivo
   │      ├── autoindex on?      → listagem gerada
-  │      └── senão              → 403
+  │      └── senão              → 404
   ├── é arquivo regular         → 200 + Content-Type por extensão
   ├── não existe                → 404
   └── outro tipo (socket, fifo) → 403
@@ -89,6 +100,11 @@ resolve → stat
 O redirect do diretório sem barra importa: sem ele, os links relativos da página
 quebrariam. O `autoindex` da location vence o do server, e a ausência da diretiva
 herda ([:61](../../src/http/handlers/GetHandler.cpp#L61)).
+
+**Por que 404 e não 403 no último caso** ([:67](../../src/http/handlers/GetHandler.cpp#L67)):
+o Nginx responde 403 ali, nós respondemos 404. Sem index e sem listagem não existe
+recurso algum naquela URI, e o 403 ainda vazaria a informação de que o diretório
+existe. É uma escolha, não um descuido — saiba defender as duas leituras.
 
 ### POST / upload ([PostHandler.cpp:159](../../src/http/handlers/PostHandler.cpp#L159))
 
@@ -141,7 +157,7 @@ quebrado nunca vira 500.
 location vence a do server; se a location não define aquele código, herda. Por isso
 todos os handlers passam `&loc` para o `makeError`.
 
-**`makeFromCgi`** ([:289](../../src/http/ResponseFactory.cpp#L289)) implementa a
+**`makeFromCgi`** ([:286](../../src/http/ResponseFactory.cpp#L286)) implementa a
 RFC 3875 §6: headers, linha em branco, body. Aceita `\r\n\r\n` e `\n\n` (scripts
 Python costumam usar `\n`), traduz o header `Status:` em status code e devolve
 **502** se a saída não tiver bloco de headers válido — é o caminho que `broken.py` e
@@ -169,10 +185,16 @@ requisição completa e os argumentos do cliente estejam disponíveis para o CGI
 GATEWAY_INTERFACE=CGI/1.1     REQUEST_METHOD    CONTENT_LENGTH
 SERVER_SOFTWARE=webserv/1.0   REQUEST_URI       CONTENT_TYPE
 SERVER_PROTOCOL=HTTP/1.1      QUERY_STRING      REDIRECT_STATUS=200  (php-cgi)
-SERVER_NAME / SERVER_PORT     SCRIPT_NAME       PATH_INFO (vazio)
-                              SCRIPT_FILENAME
+SERVER_NAME / SERVER_PORT     SCRIPT_NAME       PATH_INFO       = caminho da URI
+                              SCRIPT_FILENAME   PATH_TRANSLATED = caminho em disco
 + todo header da requisição vira HTTP_<NOME>, com '-' → '_' e maiúsculas
 ```
+
+**`PATH_INFO` é o ponto sensível.** Pela RFC 3875 ele seria vazio aqui, já que a URI
+termina no próprio script. Mandamos o caminho da URI porque o `cgi_tester` da
+avaliação recusa rodar sem ele (`500 PATH_INFO not found`) e valida o valor contra
+`SCRIPT_NAME`/`REQUEST_URI` — mandar o caminho em disco dá `PATH_INFO incorrect`.
+Esse caminho em disco vai em `PATH_TRANSLATED`, que é onde a RFC o quer.
 
 `Content-Length` e `Content-Type` saem **sem** o prefixo `HTTP_`, como manda a RFC, e
 por isso são pulados no laço ([:61](../../src/cgi/CgiEnv.cpp#L61)). Demonstração ao
@@ -183,7 +205,7 @@ devolve o body que chegou pelo stdin.
 
 ## 6. Bônus: sessões e cookies
 
-[Router::handleSession](../../src/http/Router.cpp#L147) + [SessionStore](../../src/session/SessionStore.cpp)
+[Router::handleSession](../../src/http/Router.cpp#L149) + [SessionStore](../../src/session/SessionStore.cpp)
 
 ```
 GET /session
