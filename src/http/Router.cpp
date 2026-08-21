@@ -6,6 +6,7 @@
 #include "common/StringUtils.hpp"
 #include "session/SessionStore.hpp"
 #include <sys/stat.h>
+#include <unistd.h>
 
 
 static const char* const kSessionPath   = "/session";
@@ -110,12 +111,21 @@ Response Router::prepareCgi(const Request& req,
 		return ResponseFactory::makeError(status, vhost, &loc);
 	}
 
+	// O programa CGI e o handler da extensao, entao ele decide o que fazer com
+	// um alvo que nao existe no disco -- o CgiHandler so converte a falha em 404
+	// se ele tambem nao produzir resposta. Um diretorio, porem, nunca e script.
 	struct stat info;
-	if (stat(fsPath.c_str(), &info) != 0) {
-		return ResponseFactory::makeError(HTTP_NOT_FOUND, vhost, &loc);
-	}
-	if (!S_ISREG(info.st_mode)) {
+	if (stat(fsPath.c_str(), &info) == 0 && !S_ISREG(info.st_mode)) {
 		return ResponseFactory::makeError(HTTP_FORBIDDEN, vhost, &loc);
+	}
+
+	// Sem esta checagem um interpretador mal configurado so aparece como o 502
+	// generico de "CGI nao produziu saida".
+	const std::string absInterpreter = PathResolver::toAbsolute(interpreter);
+	if (access(absInterpreter.c_str(), X_OK) != 0) {
+		LOG_ERROR("prepareCgi: interpretador CGI inexistente ou sem permissao de execucao: \"" +
+		          absInterpreter + "\"");
+		return ResponseFactory::makeError(HTTP_INTERNAL_SERVER_ERROR, vhost, &loc);
 	}
 
 	cgi.loc         = &loc;

@@ -62,5 +62,7 @@ Response GetHandler::serveDirectory(const std::string& fsPath,
 	if (autoindex) {
 		return ResponseFactory::makeAutoindex(fsPath, uriPath, srv, &loc);
 	}
-	return ResponseFactory::makeError(HTTP_FORBIDDEN, srv, &loc);
+	// Sem index e sem listagem nao ha recurso algum para expor nesta URI, e
+	// responder 403 apenas revelaria que o diretorio existe.
+	return ResponseFactory::makeError(HTTP_NOT_FOUND, srv, &loc);
 }

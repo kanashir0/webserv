@@ -1,7 +1,9 @@
 #include "cgi/CgiHandler.hpp"
 #include "cgi/CgiEnv.hpp"
+#include "cgi/CgiStdinPump.hpp"
 #include "core/Client.hpp"
 #include "core/EventLoop.hpp"
+#include "http/PathResolver.hpp"
 #include "http/ResponseFactory.hpp"
 #include "common/HttpStatus.hpp"
 #include "common/Logger.hpp"
@@ -36,18 +38,20 @@ CgiHandler::CgiHandler(Client& client,
 	, req_(req)
 	, loc_(loc)
 	, srv_(srv)
-	, interpreter_(interpreter)
-	, scriptPath_(scriptPath)
+	// runChild() faz chdir() para o diretorio do script: caminhos relativos
+	// vindos do config precisam ser fixados antes disso.
+	, interpreter_(PathResolver::toAbsolute(interpreter))
+	, scriptPath_(PathResolver::toAbsolute(scriptPath))
 	, pid_(-1)
-	, stdinPipe_(-1)
+	, stdinPump_(0)
 	, stdoutPipe_(-1)
 	, output_()
-	, stdinOffset_(0)
 	, phase_(FINISHED)
 	, startedAt_(0)
 {}
 
 CgiHandler::~CgiHandler() {
+	releaseStdinPump();  // o pump sobreviveria apontando para um objeto morto
 	reapChild();
 }
 
@@ -104,61 +108,44 @@ bool CgiHandler::start(EventLoop& loop) {
 
 	FileDescriptor childStdin(in[0]);
 	FileDescriptor childStdout(out[1]);
-	stdinPipe_.reset(in[1]);
+	FileDescriptor parentStdin(in[1]);
 	stdoutPipe_.reset(out[0]);
 
-	if (::fcntl(stdinPipe_.get(), F_SETFL, O_NONBLOCK) < 0 ||
+	if (::fcntl(parentStdin.get(), F_SETFL, O_NONBLOCK) < 0 ||
 	    ::fcntl(stdoutPipe_.get(), F_SETFL, O_NONBLOCK) < 0) {
 		LOG_ERROR("CgiHandler: fcntl(O_NONBLOCK) falhou para \"" + scriptPath_ + "\"");
 		return false;
 	}
 
 	startedAt_ = std::time(0);
-	if (req_.body().empty()) {
-		stdinPipe_.reset();  // sem body: o script ve EOF de imediato
-		phase_ = READING_OUTPUT;
-	} else {
-		phase_ = WRITING_INPUT;
-	}
-
+	phase_     = READING_OUTPUT;
 	loop.add(this);
+
+	// Sem body o script ve EOF de imediato e nao ha nada para bombear.
+	if (!req_.body().empty()) {
+		stdinPump_ = new CgiStdinPump(*this, parentStdin.release(), req_.body());
+		loop.add(stdinPump_);
+	}
 	return true;
 }
 
-int CgiHandler::fd() const {
-	return phase_ == WRITING_INPUT ? stdinPipe_.get() : stdoutPipe_.get();
-}
+int CgiHandler::fd() const { return stdoutPipe_.get(); }
 
 short CgiHandler::interest() const {
-	if (phase_ == WRITING_INPUT)  return POLLOUT;
-	if (phase_ == READING_OUTPUT) return POLLIN;
-	return 0;
+	return phase_ == READING_OUTPUT ? POLLIN : 0;
 }
 
-void CgiHandler::onWritable() {
-	if (phase_ != WRITING_INPUT) {
+void CgiHandler::onWritable() {}
+
+void CgiHandler::onStdinClosed() { stdinPump_ = 0; }
+
+void CgiHandler::releaseStdinPump() {
+	if (stdinPump_ == 0) {
 		return;
 	}
-	const std::string& body      = req_.body();
-	std::size_t        remaining = body.size() - stdinOffset_;
-	if (remaining > CGI_CHUNK_SIZE) {
-		remaining = CGI_CHUNK_SIZE;
-	}
-
-	ssize_t sent = ::write(stdinPipe_.get(), body.data() + stdinOffset_, remaining);
-	if (sent <= 0) {
-		stopWritingInput();  // script fechou o stdin antes de ler tudo
-		return;
-	}
-	stdinOffset_ += static_cast<std::size_t>(sent);
-	if (stdinOffset_ >= body.size()) {
-		stopWritingInput();
-	}
-}
-
-void CgiHandler::stopWritingInput() {
-	stdinPipe_.reset();  // fechar a ponta de escrita e o EOF do script
-	phase_ = READING_OUTPUT;
+	CgiStdinPump* pump = stdinPump_;
+	stdinPump_ = 0;
+	pump->detachOwner();  // fecha o stdin do script e desarma o ponteiro de volta
 }
 
 ssize_t CgiHandler::readChunk() {
@@ -175,19 +162,30 @@ void CgiHandler::onReadable() {
 		return;
 	}
 	if (readChunk() <= 0) {
-		deliver(ResponseFactory::makeFromCgi(output_, srv_, &loc_));
+		deliver(buildResponse());
 	}
 }
 
 void CgiHandler::onHangup() {
-	if (phase_ == WRITING_INPUT) {
-		stopWritingInput();
-		return;
-	}
 	if (phase_ == READING_OUTPUT && readChunk() > 0) {
 		return;
 	}
-	deliver(ResponseFactory::makeFromCgi(output_, srv_, &loc_));
+	deliver(buildResponse());
+}
+
+Response CgiHandler::buildResponse() {
+	Response resp = ResponseFactory::makeFromCgi(output_, srv_, &loc_);
+	if (resp.status() != HTTP_BAD_GATEWAY) {
+		return resp;
+	}
+	// O script roda mesmo sem existir no disco (ver Router::prepareCgi). Quando
+	// ele nao devolve nada aproveitavel e o alvo tambem nao existe, o 404 conta
+	// a verdade melhor que um 502 generico -- e o que acontece, por exemplo, com
+	// um ".py" inexistente entregue ao interpretador python.
+	if (::access(scriptPath_.c_str(), F_OK) != 0) {
+		return ResponseFactory::makeError(HTTP_NOT_FOUND, srv_, &loc_);
+	}
+	return resp;
 }
 
 void CgiHandler::checkTimeout(std::time_t now, std::time_t /*timeout*/) {
@@ -208,7 +206,7 @@ void CgiHandler::detachClient() {
 }
 
 void CgiHandler::shutdownChild() {
-	stdinPipe_.reset();
+	releaseStdinPump();
 	stdoutPipe_.reset();
 	phase_ = FINISHED;
 	reapChild();

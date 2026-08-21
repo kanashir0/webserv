@@ -14,6 +14,7 @@
 
 class EventLoop;
 class Client;
+class CgiStdinPump;
 
 class CgiHandler : public IPollable {
 public:
@@ -29,6 +30,9 @@ public:
 
 	void detachClient();
 
+	// Chamado pelo CgiStdinPump quando o body acabou de ser escrito.
+	void onStdinClosed();
+
 	int   fd() const;
 	short interest() const;
 	void  onReadable();
@@ -39,7 +43,6 @@ public:
 
 private:
 	enum Phase {
-		WRITING_INPUT,   // enviando o body da requisicao para o stdin do script
 		READING_OUTPUT,  // lendo o stdout do script
 		FINISHED         // resposta entregue; pronto para o reapClosed()
 	};
@@ -52,16 +55,16 @@ private:
 	std::string           scriptPath_;
 
 	pid_t          pid_;
-	FileDescriptor stdinPipe_;
+	CgiStdinPump*  stdinPump_;  // pertence ao EventLoop, nao a este objeto
 	FileDescriptor stdoutPipe_;
 	std::string    output_;
-	std::size_t    stdinOffset_;
 	Phase          phase_;
 	std::time_t    startedAt_;
 
-	void    runChild(int inPipe[2], int outPipe[2]);
-	ssize_t readChunk();
-	void    stopWritingInput();
+	void     runChild(int inPipe[2], int outPipe[2]);
+	Response buildResponse();
+	ssize_t  readChunk();
+	void    releaseStdinPump();
 	void    shutdownChild();
 	void    deliver(const Response& resp);
 	void    reapChild();
